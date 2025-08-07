@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Interactive Depreciation Visualizer (Animated)</title>
+  <style>
+    :root { --w: 880px; --h: 420px; }
+    body { font-family: Inter, system-ui, Arial, sans-serif; margin: 24px; background:#f7f7fb; }
+    h2 { margin: 0 0 8px 0; }
+    .wrap { display:grid; grid-template-columns: 320px 1fr; gap:16px; align-items:start; }
+    fieldset { border:1px solid #ddd; padding:12px; border-radius:12px; background:white; }
+    label { font-size:12px; display:block; margin-top:8px; color:#333 }
+    input, textarea, select, button { width:100%; padding:8px; border-radius:10px; border:1px solid #d0d0e0; font-size:13px; }
+    textarea { height:64px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .row { display:grid; grid-template-columns: 1fr 1fr; gap:8px; }
+    .btnrow { display:flex; gap:8px; margin-top:8px; }
+    button { cursor:pointer; background:#111827; color:white; border:none; }
+    button.ghost { background:white; color:#111; border:1px solid #cfd2dc }
+    .legend { display:flex; gap:12px; font-size:12px; color:#333; margin:6px 0 0 0 }
+    .swatch { width:10px; height:10px; border-radius:2px; display:inline-block; margin-right:6px; }
+    svg { background:white; border:1px solid #e2e2ea; border-radius:12px; width:var(--w); height:var(--h); }
+    .axis { stroke:#c9c9d6; stroke-width:1; }
+    .tick text { font-size:10px; fill:#444; }
+    .bar { transition: height 600ms ease, y 600ms ease; }
+    .marker { transition: x 400ms ease; }
+    .value-label { font-size:10px; fill:#111; opacity:.9; }
+  </style>
+</head>
+<body>
+  <h2>Depreciation Methods — Interactive & Animated</h2>
+  <div class="wrap">
+    <fieldset>
+      <legend><strong>Inputs</strong></legend>
+      <div class="row">
+        <label>Cost (₱)
+          <input id="cost" type="number" value="100000" min="0" step="1000" />
+        </label>
+        <label>Salvage (₱)
+          <input id="salvage" type="number" value="10000" min="0" step="500" />
+        </label>
+      </div>
+      <div class="row">
+        <label>Useful life (years)
+          <input id="life" type="number" value="5" min="1" max="15" />
+        </label>
+        <label>Total units (for UoP)
+          <input id="totalUnits" type="number" value="100000" min="1" step="1000" />
+        </label>
+      </div>
+      <label>Units used per year (comma-separated for UoP)
+        <textarea id="units">10000,20000,30000,25000,15000</textarea>
+      </label>
+      <div class="btnrow">
+        <button id="apply">Recalculate & Animate</button>
+        <button id="play" class="ghost">Play Year Scrubber ▶</button>
+      </div>
+      <label>Highlight method
+        <select id="focus">
+          <option value="all" selected>Show all</option>
+          <option value="Straight-Line">Straight-Line</option>
+          <option value="DDB">Double Declining Balance</option>
+          <option value="UoP">Units of Production</option>
+          <option value="SYD">Sum-of-the-Years'-Digits</option>
+        </select>
+      </label>
+      <p style="font-size:12px;color:#555;margin-top:8px">Tip: Change any input and hit <em>Recalculate & Animate</em>. The bars will morph to the new values. Hit <em>Play</em> to move the year marker.</p>
+    </fieldset>
+
+    <div>
+      <svg id="svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid meet"></svg>
+      <div class="legend">
+        <span><span class="swatch" style="background:#2563eb"></span>Straight-Line</span>
+        <span><span class="swatch" style="background:#ef4444"></span>Double Declining</span>
+        <span><span class="swatch" style="background:#16a34a"></span>Units of Production</span>
+        <span><span class="swatch" style="background:#f59e0b"></span>SYD</span>
+      </div>
+    </div>
+  </div>
+
+<script>
+const colors = {
+  'Straight-Line': '#2563eb',
+  'DDB': '#ef4444',
+  'UoP': '#16a34a',
+  "SYD": '#f59e0b'
+};
+
+const svg = document.getElementById('svg');
+const W = 880, H = 420, m = {l:60, r:20, t:30, b:40};
+const CH = H - m.t - m.b, CW = W - m.l - m.r;
+
+function $v(tag, attrs={}){ const n = document.createElementNS('http://www.w3.org/2000/svg', tag); for(const k in attrs){ n.setAttribute(k, attrs[k]); } return n; }
+
+function lines(parent){
+  parent.innerHTML='';
+  // axes
+  parent.appendChild($v('line', {x1:m.l,y1:H-m.b,x2:W-m.r,y2:H-m.b,class:'axis'}));
+  parent.appendChild($v('line', {x1:m.l,y1:m.t,x2:m.l,y2:H-m.b,class:'axis'}));
+}
+
+function parseUnits(txt){ return txt.split(',').map(s=>+s.trim()).filter(n=>!isNaN(n)); }
+
+function calc(cost, salvage, life, units, totalUnits){
+  const base = cost - salvage;
+  // Straight line
+  const sl = Array(life).fill(base / life);
+  // DDB
+  const rate = 2 / life;
+  let bv = cost; const ddb=[];
+  for(let y=0;y<life;y++){
+    let dep = bv * rate;
+    if (bv - dep < salvage) dep = bv - salvage; // cap at salvage
+    ddb.push(dep); bv -= dep;
+  }
+  // SYD
+  const sydSum = life*(life+1)/2; const syd=[];
+  for(let y=0;y<life;y++){
+    const rem = life - y; syd.push(base * (rem / sydSum));
+  }
+  // UoP
+  const perUnit = base / (totalUnits||1);
+  const uop = Array(life).fill(0).map((_,i)=> perUnit * (units[i]||0));
+  return { 'Straight-Line': sl, 'DDB': ddb, 'UoP': uop, 'SYD': syd };
+}
+
+function draw(data, focus='all'){
+  svg.innerHTML=''; lines(svg);
+  const years = Math.max(...Object.values(data).map(a=>a.length));
+  const max = Math.max(1, ...Object.values(data).flat());
+  // grid + ticks
+  const ticks = 5; for(let i=0;i<=ticks;i++){
+    const y = m.t + (CH)*(1 - i/ticks);
+    svg.appendChild($v('line',{x1:m.l,y1:y,x2:W-m.r,y2:y,stroke:'#eee'}));
+    const tv = Math.round(max*i/ticks);
+    const t = $v('text',{x:m.l-8,y:y+4,'text-anchor':'end',class:'tick'}); t.textContent = tv.toLocaleString(); svg.appendChild(t);
+  }
+  for(let y=0;y<years;y++){
+    const t = $v('text',{x:m.l + (CW/(years-1))*y, y:H-16, 'text-anchor':'middle', class:'tick'}); t.textContent = 'Y'+(y+1); svg.appendChild(t);
+  }
+  // bars
+  const groupWidth = CW/years; const barW = groupWidth/6; // 4 bars + gap
+  const methods = Object.keys(data);
+  methods.forEach((method, mi)=>{
+    const arr = data[method];
+    arr.forEach((v, y)=>{
+      const x = m.l + y*groupWidth + (mi-1.5)*barW + groupWidth/2;
+      const h = (v/max)*CH; const yTop = m.t + (CH - h);
+      const rect = $v('rect',{x:x,y:H-m.b, width:barW, height:0, fill:colors[method], opacity: focus==='all'||focus===method?1:0.18, class:'bar'});
+      svg.appendChild(rect);
+      // animate to target
+      requestAnimationFrame(()=>{
+        rect.setAttribute('y', yTop);
+        rect.setAttribute('height', h);
+      });
+      const lbl = $v('text',{x:x+barW/2, y:yTop-4, 'text-anchor':'middle', class:'value-label'});
+      lbl.textContent = Math.round(v).toLocaleString();
+      lbl.style.opacity = focus==='all'||focus===method?1:.2;
+      svg.appendChild(lbl);
+    });
+  });
+  // movable year marker
+  const markerX = m.l; // start at year 1
+  const marker = $v('line',{x1:markerX,y1:m.t-2,x2:markerX,y2:H-m.b+2, stroke:'#6b7280', 'stroke-dasharray':'4 4', class:'marker', id:'marker'});
+  svg.appendChild(marker);
+}
+
+function recompute(){
+  const cost = +document.getElementById('cost').value;
+  const salvage = +document.getElementById('salvage').value;
+  const life = +document.getElementById('life').value;
+  const totalUnits = +document.getElementById('totalUnits').value;
+  const units = parseUnits(document.getElementById('units').value);
+  const focus = document.getElementById('focus').value;
+  const data = calc(cost, salvage, life, units, totalUnits);
+  draw(data, focus);
+}
+
+function playMarker(){
+  const life = +document.getElementById('life').value;
+  const groupWidth = CW/Math.max(1, life-1);
+  let i=0; const marker = document.getElementById('marker');
+  if(!marker) return;
+  const id = setInterval(()=>{
+    const x = m.l + groupWidth*i; marker.setAttribute('x1', x); marker.setAttribute('x2', x);
+    i++; if(i>=life){ clearInterval(id); }
+  }, 600);
+}
+
+// events
+['cost','salvage','life','totalUnits','units','focus'].forEach(id=>{
+  document.getElementById(id).addEventListener('change', recompute);
+});
+
+document.getElementById('apply').addEventListener('click', recompute);
+
+document.getElementById('play').addEventListener('click', ()=>{ playMarker(); });
+
+// initial draw
+recompute();
+</script>
+</body>
+</html>
