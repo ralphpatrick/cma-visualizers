@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Risk–Control Match Game (CMA Study) — v2</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --w: 1100px; }
+  body{font-family: Inter, system-ui, Arial; background:#f7f8fb; color:#0f172a; margin:24px;}
+  h1{margin:0 0 6px} .sub{margin:0 0 16px; color:#475569}
+  .wrap{display:grid; grid-template-columns: 380px 1fr; gap:16px; align-items:start}
+  .panel{background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:12px}
+  .pill{display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; background:#e2e8f0; margin:6px 6px 0 0; cursor:grab; user-select:none}
+  .pill[draggable="true"]:active{cursor:grabbing}
+  .id{font-weight:700; font-size:11px; background:#0ea5e9; color:#fff; padding:2px 6px; border-radius:999px}
+  .bins{display:grid; grid-template-columns: repeat(3, 1fr); gap:12px}
+  .bin{border:2px dashed #cbd5e1; border-radius:12px; padding:12px; min-height:160px; background:#fff; position:relative}
+  .bin h3{margin:0 0 8px; display:flex; align-items:center; gap:8px}
+  .bin .hint{font-size:11px; color:#64748b}
+  .bin.over{background:#f1f5f9; border-color:#94a3b8}
+  .correct{animation: flash 800ms ease}
+  .wrong{animation: shake 450ms ease}
+  @keyframes flash{0%{background:#dcfce7}100%{background:#fff}}
+  @keyframes shake{10%, 90%{transform:translateX(-3px)} 20%,80%{transform:translateX(3px)} 30%,50%,70%{transform:translateX(-6px)} 40%,60%{transform:translateX(6px)}}
+  .kpis{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin-top:8px}
+  .kpi{background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:10px}
+  .kpi .t{font-size:11px; color:#64748b} .kpi .v{font-size:20px; font-weight:800}
+  .btnrow{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+  button{background:#111827; color:#fff; border:none; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer}
+  .ghost{background:#fff; color:#111; border:1px solid #cfd2dc}
+  .tt{position:relative; cursor:help; border-bottom:1px dotted #94a3b8}
+  .tt:hover::after{content:attr(data-tip); position:absolute; left:0; top:120%; background:#0f172a; color:#fff; font-size:12px; line-height:1.3; padding:8px 10px; border-radius:8px; width:260px; z-index:3; box-shadow:0 8px 24px rgba(15,23,42,.2)}
+  svg{width:100%; height:220px; background:#fff; border:1px solid #e5e7ef; border-radius:12px}
+  .legend{font-size:12px; color:#334155; margin-top:6px}
+  /* Popover */
+  .popover{position:fixed; background:#0f172a; color:#fff; font-size:12px; line-height:1.35; padding:10px 12px; border-radius:10px; max-width:260px; box-shadow:0 10px 26px rgba(15,23,42,.25); z-index:9999}
+  .popover b{color:#93c5fd}
+  .closex{background:transparent; border:none; color:#fff; float:right; cursor:pointer; font-size:14px}
+</style>
+</head>
+<body>
+<h1>Risk–Control Match Game</h1>
+<p class="sub">Drag each <b>risk</b> into the correct control type: <span class="tt" data-tip="Preventive stops bad things before they happen. Detective finds them after. Corrective fixes and prevents re-occurrence."><b>Preventive</b> / <b>Detective</b> / <b>Corrective</b></span>. In <b>Exam</b> mode, drop everything first, then hit <b>Check</b> to get “why this is wrong” feedback.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="t">Score</div><div class="v" id="score">0</div></div>
+  <div class="kpi"><div class="t">Placed</div><div class="v" id="placed">0</div></div>
+  <div class="kpi"><div class="t">Left</div><div class="v" id="left">—</div></div>
+  <div class="kpi"><div class="t">Streak</div><div class="v" id="streak">0</div></div>
+  <div class="kpi"><div class="t">Mode</div><div class="v" id="mode">Study</div></div>
+</div>
+
+<div class="wrap">
+  <!-- Risks -->
+  <div class="panel">
+    <h3>Risks to place</h3>
+    <div class="btnrow" style="margin-bottom:6px">
+      <label style="font-size:12px; color:#334155">Pool size:
+        <select id="poolSize">
+          <option value="10">10</option>
+          <option value="15" selected>15</option>
+          <option value="all">All</option>
+        </select>
+      </label>
+      <button id="newset" class="ghost">🎲 New Set</button>
+      <button id="shuffle" class="ghost">Shuffle</button>
+      <button id="reset">Reset</button>
+      <button id="toggle">Toggle Study/Exam</button>
+      <button id="checkBtn" class="ghost">Check (Exam)</button>
+      <button id="reveal" class="ghost">Reveal Answers</button>
+    </div>
+    <div id="risks"></div>
+    <p class="sub" style="margin-top:10px"><strong>Tip:</strong> Separate <em>authorization</em>, <em>custody</em>, <em>record-keeping</em>. Combining two → red flag.</p>
+  </div>
+
+  <!-- Drop bins + SVG feedback -->
+  <div class="panel">
+    <div class="bins">
+      <div class="bin" data-type="Preventive">
+        <h3>🛑 Preventive <span class="tt" data-tip="Stops errors/fraud before they happen: approvals, SoD, limits, access controls.">(?)</span></h3>
+        <div class="hint">Approvals, credit limits, SoD, access control</div>
+      </div>
+      <div class="bin" data-type="Detective">
+        <h3>🔎 Detective <span class="tt" data-tip="Finds problems after they happen: reconciliations, reviews, exception reports, audits.">(?)</span></h3>
+        <div class="hint">Recs, exception reports, audits</div>
+      </div>
+      <div class="bin" data-type="Corrective">
+        <h3>🛠 Corrective <span class="tt" data-tip="Fixes the issue and prevents repeat: restore backups, adjust entries, root-cause remediation, retraining.">(?)</span></h3>
+        <div class="hint">Restore, adjust, remediate, retrain</div>
+      </div>
+    </div>
+
+    <!-- SVG feedback: checks & confetti -->
+    <svg id="fx" viewBox="0 0 1000 220" preserveAspectRatio="xMidYMid meet">
+      <g id="checks"></g>
+      <g id="confetti"></g>
+    </svg>
+    <div class="legend">✅ Correct drops animate with a green check. ❌ After <b>Check</b> in Exam mode, wrong placements show a popover with the correct control type + why.</div>
+  </div>
+</div>
+
+<script>
+/* ---------- Big Deck (more to play) ---------- */
+const PREV = 'Preventive', DET = 'Detective', COR = 'Corrective';
+const fullDeck = [
+  // Cash/Payments/Revenue
+  {id:'R1',  text:'Unauthorized payment is made', ans:PREV, why:'Prevent with approvals, vendor master controls, and SoD (AP vs payment).'},
+  {id:'R2',  text:'Cash is stolen from register', ans:PREV, why:'Prevent with dual custody, cash counts, cameras, till limits.'},
+  {id:'R3',  text:'Bank discrepancies go unnoticed', ans:DET,  why:'Detect via timely, independent bank reconciliation.'},
+  {id:'R4',  text:'Posting errors in GL', ans:DET,  why:'Detect via reviews, reconciliations, and variance analysis.'},
+  {id:'R5',  text:'Fraudulent refund processed', ans:PREV, why:'Prevent using supervisor approval + refund logs + SoD (sales vs returns).'},
+  {id:'R6',  text:'Fake vendor added to AP', ans:PREV, why:'Prevent with vendor onboarding approvals and change management.'},
+  {id:'R7',  text:'Late deposits cause cash loss', ans:DET,  why:'Detect via deposit lag reports & daily cash reconciliation.'},
+
+  // IT / Access
+  {id:'R8',  text:'User has excessive system access', ans:PREV, why:'Prevent with RBAC, SoD, least-privilege, and access approvals.'},
+  {id:'R9',  text:'Ransomware encrypts files', ans:COR, why:'Correct by restoring verified backups; then harden security.'},
+  {id:'R10', text:'Unauthorized change to master data', ans:PREV, why:'Prevent with change approvals and audit trails for master data.'},
+
+  // Inventory
+  {id:'R11', text:'Inventory shrinkage (theft/loss)', ans:DET,  why:'Detect via cycle counts and compare physical to records.'},
+  {id:'R12', text:'Write-offs approved by warehouse', ans:PREV, why:'Prevent: approval must be independent of custody (SoD).'},
+  {id:'R13', text:'Receiving posts without PO', ans:DET,  why:'Detect with 3-way match exceptions (PO/GRN/Invoice).'},
+
+  // Payroll
+  {id:'R14', text:'Ghost employee on payroll', ans:PREV, why:'Prevent with HR master approvals + new hire separation from payroll processing.'},
+  {id:'R15', text:'Fraudulent timesheets submitted', ans:DET,  why:'Detect via supervisor review and exception reports.'},
+  {id:'R16', text:'Recurring payroll posting error', ans:COR, why:'Correct with root-cause fix + policy update + retraining.'},
+
+  // Fixed assets
+  {id:'R17', text:'Capex spent without authorization', ans:PREV, why:'Prevent with capital project approval thresholds and budget gates.'},
+  {id:'R18', text:'Asset register doesn’t match floor', ans:DET,  why:'Detect via periodic physical verification vs FA register.'},
+  {id:'R19', text:'Wrong depreciation method applied', ans:COR,  why:'Correct entries + update accounting policy and controls.'},
+
+  // Reporting/Closing
+  {id:'R20', text:'Material misstatement not noticed', ans:DET,  why:'Detect with review controls, analytics, and reconciliations.'},
+  {id:'R21', text:'Journal entry posted without approval', ans:PREV, why:'Prevent with JE approval workflows and thresholds.'},
+  {id:'R22', text:'Error identified late in close', ans:COR, why:'Correct with adjusting entries + update close checklist.'},
+
+  // Disbursements/AP
+  {id:'R23', text:'Same person approves & pays vendor', ans:PREV, why:'Prevent by separating authorization (approve) and custody (pay).'},
+  {id:'R24', text:'Duplicate invoice paid', ans:DET,  why:'Detect with duplicate invoice checks and exception reports.'},
+  {id:'R25', text:'Unapplied cash grows over time', ans:DET,  why:'Detect via AR exception aging & suspense clearing reviews.'},
+
+  // General/Corrective
+  {id:'R26', text:'Recurring control failure', ans:COR, why:'Correct with remediation plan, owner, deadline, and monitoring.'},
+  {id:'R27', text:'Backup not tested; restore fails', ans:COR, why:'Correct by testing/validating backups and documenting drills.'},
+  {id:'R28', text:'Credit granted to risky customer', ans:PREV, why:'Prevent with credit policy, limits, and independent approval.'}
+];
+
+let modeStudy = true; // Study = immediate feedback; Exam = check at end
+let score = 0, streak = 0, placed = 0, left = 0;
+
+const risksDiv = document.getElementById('risks');
+const bins = Array.from(document.querySelectorAll('.bin'));
+const fx = document.getElementById('fx');
+const checksG = document.getElementById('checks');
+const confettiG = document.getElementById('confetti');
+const scoreEl = document.getElementById('score');
+const leftEl = document.getElementById('left');
+const placedEl = document.getElementById('placed');
+const streakEl = document.getElementById('streak');
+const modeEl = document.getElementById('mode');
+const poolSel = document.getElementById('poolSize');
+
+let deck = [];          // active set (subset of fullDeck)
+const homeTrayId = 'risks'; // origin container
+const popovers = new Set();
+
+/* ---------- Utils ---------- */
+function shuffleArr(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } }
+function updateKPI(){ scoreEl.textContent = score; streakEl.textContent = streak; leftEl.textContent = left; placedEl.textContent = placed; modeEl.textContent = modeStudy ? 'Study' : 'Exam'; }
+function closeAllPopovers(){ for(const p of popovers){ p.remove(); } popovers.clear(); }
+
+function makePopover({x,y,html,timeout=4500}){
+  const p = document.createElement('div'); p.className='popover';
+  p.style.left = Math.max(12, x-120)+'px'; p.style.top = Math.max(12, y)+'px';
+  p.innerHTML = `<button class="closex" title="Close">×</button>${html}`;
+  document.body.appendChild(p); popovers.add(p);
+  p.querySelector('.closex').onclick = ()=>{ p.remove(); popovers.delete(p); };
+  if (timeout) setTimeout(()=>{ if (p.parentNode){ p.remove(); popovers.delete(p);} }, timeout);
+}
+
+/* ---------- Rendering ---------- */
+function renderRisksToTray(items){
+  risksDiv.innerHTML = '';
+  items.forEach(r=>{
+    const pill = document.createElement('div');
+    pill.className = 'pill';
+    pill.setAttribute('draggable','true');
+    pill.dataset.id = r.id;
+    pill.dataset.ans = r.ans;
+    pill.innerHTML = `<span class="id">${r.id}</span> ${r.text}`;
+    pill.title = modeStudy ? r.why : '';
+    hookDrag(pill);
+    risksDiv.appendChild(pill);
+  });
+  left = items.length; placed = 0; streak = 0; score = 0;
+  updateKPI();
+}
+
+/* ---------- Drag & drop ---------- */
+function hookDrag(el){
+  el.addEventListener('dragstart', e=>{
+    closeAllPopovers();
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      id: el.dataset.id, ans: el.dataset.ans
+    }));
+  });
+}
+bins.forEach(bin=>{
+  bin.addEventListener('dragover', e=>{ e.preventDefault(); bin.classList.add('over'); });
+  bin.addEventListener('dragleave', ()=> bin.classList.remove('over'));
+  bin.addEventListener('drop', e=>{
+    e.preventDefault(); bin.classList.remove('over');
+    closeAllPopovers();
+    const data = JSON.parse(e.dataTransfer.getData('text/plain')); if (!data) return;
+    const pill = document.querySelector(`.pill[data-id="${data.id}"]`);
+    if (!pill) return;
+    const correct = bin.dataset.type === data.ans;
+
+    // Move pill into bin
+    bin.appendChild(pill);
+
+    // Update counts
+    if (pill.dataset.placed !== 'true'){ placed += 1; left -= 1; pill.dataset.placed='true'; }
+
+    if (modeStudy){
+      if (correct){
+        score += 10; streak += 1;
+        bin.classList.add('correct'); setTimeout(()=>bin.classList.remove('correct'), 500);
+        drawCheck(bin);
+        pill.style.opacity = '.85';
+        pill.setAttribute('draggable','false');
+      } else {
+        streak = 0; bin.classList.add('wrong'); setTimeout(()=>bin.classList.remove('wrong'), 450);
+        // pop “why this is wrong”
+        const r = deck.find(x=> x.id===data.id);
+        const rect = pill.getBoundingClientRect();
+        makePopover({x: rect.left+rect.width/2, y: rect.top-10, html:
+          `<div><b>Not quite.</b><br/>This is <b>${r.ans}</b>, because: ${r.why}</div>`
+        });
+      }
+    } else {
+      // Exam mode: no immediate feedback
+      pill.style.opacity='.95';
+    }
+    updateKPI();
+  });
+});
+
+/* ---------- Check in Exam mode ---------- */
+document.getElementById('checkBtn').addEventListener('click', ()=>{
+  if (modeStudy) return; // only in Exam mode
+  closeAllPopovers();
+  let correctCt = 0, wrongCt = 0;
+  // Iterate all pills that are placed (not in home tray)
+  deck.forEach(r=>{
+    const pill = document.querySelector(`.pill[data-id="${r.id}"]`);
+    if (!pill) return;
+    const parent = pill.parentElement;
+    if (parent && parent.classList.contains('bin')){
+      const droppedType = parent.getAttribute('data-type');
+      if (droppedType === r.ans){
+        correctCt++; // draw check
+        drawCheck(parent);
+      } else {
+        wrongCt++;
+        const rect = pill.getBoundingClientRect();
+        makePopover({x: rect.left+rect.width/2, y: rect.top-10, html:
+          `<div><b>Why wrong?</b> Correct type: <b>${r.ans}</b>.<br/>${r.why}</div>`, timeout:8000});
+      }
+    }
+  });
+  score = correctCt*10; streak = 0;
+  updateKPI();
+  if (wrongCt===0 && placed===deck.length) celebrate();
+});
+
+/* ---------- Reveal Answers ---------- */
+document.getElementById('reveal').addEventListener('click', ()=>{
+  closeAllPopovers();
+  deck.forEach(r=>{
+    const pill = document.querySelector(`.pill[data-id="${r.id}"]`);
+    if (!pill) return;
+    const target = Array.from(bins).find(b=> b.dataset.type===r.ans);
+    target.appendChild(pill);
+    pill.style.opacity='.85';
+    pill.setAttribute('draggable','false');
+  });
+  score = deck.length*10; left = 0; placed = deck.length; streak = 0;
+  updateKPI(); celebrate();
+});
+
+/* ---------- Animated green check in SVG near the bin ---------- */
+function drawCheck(bin){
+  const rect = bin.getBoundingClientRect();
+  const svgRect = fx.getBoundingClientRect();
+  const x = Math.min(960, Math.max(40, rect.left - svgRect.left + rect.width/2));
+  const y = Math.min(180, Math.max(40, rect.top - svgRect.top + 20));
+
+  const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  p.setAttribute('d', `M ${x-18} ${y} l 10 10 l 20 -20`);
+  p.setAttribute('stroke', '#16a34a');
+  p.setAttribute('stroke-width', '5');
+  p.setAttribute('fill', 'none');
+  p.setAttribute('stroke-linecap','round');
+  p.setAttribute('stroke-linejoin','round');
+  p.style.strokeDasharray = '60';
+  p.style.strokeDashoffset = '60';
+  checksG.appendChild(p);
+  p.animate([{strokeDashoffset:60},{strokeDashoffset:0}], {duration:500, fill:'forwards'});
+  setTimeout(()=> p.animate([{opacity:1},{opacity:0}], {duration:600, fill:'forwards'}), 800);
+}
+
+/* ---------- Confetti when finished ---------- */
+function celebrate(){
+  confettiG.innerHTML = '';
+  for(let i=0;i<64;i++){
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    const x = 80 + Math.random()*840, y = 20 + Math.random()*40;
+    const dx = (Math.random()*2-1)*60, dy = 160+Math.random()*40;
+    path.setAttribute('d', `M ${x} ${y} q ${dx/2} ${dy/2} ${dx} ${dy}`);
+    path.setAttribute('stroke', ['#22c55e','#f59e0b','#ef4444','#6366f1'][i%4]);
+    path.setAttribute('stroke-width','3');
+    path.setAttribute('fill','none');
+    confettiG.appendChild(path);
+    path.animate([{opacity:1, transform:'translateY(0px)'}, {opacity:0, transform:`translateY(${20+Math.random()*30}px)`}], {duration:1200+Math.random()*800, delay:i*15, easing:'ease-out', fill:'forwards'});
+  }
+}
+
+/* ---------- Set management ---------- */
+function buildSet(){
+  const choice = poolSel.value;
+  deck = [...fullDeck];
+  shuffleArr(deck);
+  if (choice !== 'all'){
+    const n = parseInt(choice,10); deck = deck.slice(0,n);
+  }
+  checksG.innerHTML=''; confettiG.innerHTML=''; closeAllPopovers();
+  // move any pills back to tray
+  document.querySelectorAll('.bin .pill').forEach(p=> p.remove());
+  renderRisksToTray(deck);
+}
+document.getElementById('newset').addEventListener('click', buildSet);
+
+document.getElementById('shuffle').addEventListener('click', ()=>{
+  shuffleArr(deck); renderRisksToTray(deck);
+});
+document.getElementById('reset').addEventListener('click', ()=>{
+  renderRisksToTray(deck);
+});
+document.getElementById('toggle').addEventListener('click', ()=>{
+  modeStudy = !modeStudy; closeAllPopovers();
+  // update titles
+  document.querySelectorAll('.pill').forEach(p=>{
+    const r = fullDeck.find(x=> x.id===p.dataset.id);
+    p.title = modeStudy ? r.why : '';
+  });
+  updateKPI();
+});
+
+/* ---------- Init ---------- */
+buildSet();
+</script>
+</body>
+</html>
