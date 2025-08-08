@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Loan Portfolio Risk Visualizer — CECL (CMA Study)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --w: 1100px; --h: 640px; }
+  body { font-family: Inter, system-ui, Arial; background:#f7f8fb; color:#0f172a; margin:24px; }
+  h1 { margin:0 0 6px }
+  .sub { margin:0 0 16px; color:#475569 }
+  .wrap { display:grid; grid-template-columns: 430px 1fr; gap:16px; align-items:start }
+  fieldset { background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:12px }
+  legend { padding:0 8px; font-weight:700 }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px }
+  .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px }
+  label { font-size:12px; color:#334155; display:block; margin:8px 0 4px }
+  input[type=range] { width:100% }
+  .pill { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; background:#e2e8f0; color:#0f172a }
+  .box { background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:12px; margin-top:10px }
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:8px }
+  .kpi { background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:10px }
+  .kpi .t { font-size:11px; color:#64748b }
+  .kpi .v { font-size:20px; font-weight:800 }
+  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e5e7ef; border-radius:12px; overflow:hidden }
+  th,td { padding:8px 10px; border-bottom:1px solid #eef2f7; font-size:12px; text-align:right }
+  th:first-child,td:first-child { text-align:left }
+  tr:last-child td { border-bottom:none }
+  .muted { color:#64748b }
+  .good { color:#16a34a } .ok { color:#f59e0b } .bad { color:#dc2626 }
+  /* Tooltip */
+  .tt { position:relative; cursor:help; border-bottom:1px dotted #94a3b8 }
+  .tt:hover::after {
+    content: attr(data-tip);
+    position:absolute; left:0; top:120%;
+    background:#0f172a; color:#fff; font-size:12px; line-height:1.3;
+    padding:8px 10px; border-radius:8px; width:260px; z-index:3;
+    box-shadow:0 8px 24px rgba(15,23,42,.2);
+  }
+  svg { background:#fff; border:1px solid #e5e7ef; border-radius:12px; width:var(--w); height:var(--h) }
+  .axis { stroke:#e2e8f0; stroke-width:1 }
+  .bar { transition: y .35s ease, height .35s ease }
+  .legend { display:flex; gap:12px; font-size:12px; color:#334155; margin:8px 0; flex-wrap:wrap }
+  .sw { width:12px; height:12px; border-radius:2px; display:inline-block; margin-right:6px }
+  .hint { font-size:11px; color:#64748b }
+  .btnrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px }
+  button { background:#111827; color:#fff; border:none; border-radius:10px; padding:8px 10px; font-size:13px; cursor:pointer }
+  .ghost { background:#fff; color:#111; border:1px solid #cfd2dc }
+  #err { color:#b91c1c; font-size:12px; display:none; margin-top:6px }
+  code { background:#f1f5f9; padding:2px 6px; border-radius:6px }
+</style>
+</head>
+<body>
+<h1>Loan Portfolio Risk Visualizer — CECL</h1>
+<p class="sub">Tweak PD/LGD per aging bucket and see **CECL** move. Hover the dotted terms for **ELI5 tooltips**.</p>
+
+<div class="kpis">
+  <div class="kpi"><div class="t">Total Outstanding (₱)</div><div class="v" id="k_out">—</div></div>
+  <div class="kpi"><div class="t">Total CECL (₱)</div><div class="v bad" id="k_cecl">—</div></div>
+  <div class="kpi"><div class="t"><span class="tt" data-tip="Exposure at Default: the amount at risk if the borrower defaults. In this tool, EAD = loan balance.">EAD</span> basis</div><div class="v" id="k_ead">Balance</div></div>
+  <div class="kpi"><div class="t"><span class="tt" data-tip="CECL = Expected credit losses over the life of the loan. We estimate with: EAD × PD × LGD for each loan (or bucket) and sum them up.">Formula</span></div>
+    <div class="v"><code>Σ(EAD × PD × LGD)</code></div></div>
+</div>
+
+<div class="wrap">
+  <!-- Controls -->
+  <fieldset>
+    <legend>Assumptions (per Aging Bucket)</legend>
+    <div class="row3">
+      <div><label>Current (0–30) PD %</label><input id="pd0" type="range" min="0" max="100" step="1" value="2"><div><span id="pd0v">2</span>%</div></div>
+      <div><label>LGD %</label><input id="lgd0" type="range" min="0" max="100" step="1" value="40"><div><span id="lgd0v">40</span>%</div></div>
+      <div class="hint">🟢 Typically low risk</div>
+    </div>
+    <div class="row3">
+      <div><label>31–60 PD %</label><input id="pd1" type="range" min="0" max="100" step="1" value="5"><div><span id="pd1v">5</span>%</div></div>
+      <div><label>LGD %</label><input id="lgd1" type="range" min="0" max="100" step="1" value="50"><div><span id="lgd1v">50</span>%</div></div>
+      <div class="hint">🟠 More slippage, higher PD</div>
+    </div>
+    <div class="row3">
+      <div><label>61–90 PD %</label><input id="pd2" type="range" min="0" max="100" step="1" value="12"><div><span id="pd2v">12</span>%</div></div>
+      <div><label>LGD %</label><input id="lgd2" type="range" min="0" max="100" step="1" value="60"><div><span id="lgd2v">60</span>%</div></div>
+      <div class="hint">🟠 Approaching default</div>
+    </div>
+    <div class="row3">
+      <div><label>91–120 PD %</label><input id="pd3" type="range" min="0" max="100" step="1" value="25"><div><span id="pd3v">25</span>%</div></div>
+      <div><label>LGD %</label><input id="lgd3" type="range" min="0" max="100" step="1" value="70"><div><span id="lgd3v">70</span>%</div></div>
+      <div class="hint">🔴 Likely default</div>
+    </div>
+    <div class="row3">
+      <div><label>120+ PD %</label><input id="pd4" type="range" min="0" max="100" step="1" value="50"><div><span id="pd4v">50</span>%</div></div>
+      <div><label>LGD %</label><input id="lgd4" type="range" min="0" max="100" step="1" value="80"><div><span id="lgd4v">80</span>%</div></div>
+      <div class="hint">🔴 Very high default risk</div>
+    </div>
+
+    <div class="box">
+      <div class="pill">What am I changing?</div>
+      <p style="margin:8px 0 0" class="muted">
+        <span class="tt" data-tip="Probability of Default: chance the borrower will default over the life.">PD</span> raises or lowers expected defaults.  
+        <span class="tt" data-tip="Loss Given Default: % of the balance you won't recover if default happens.">LGD</span> scales the loss severity.  
+        <span class="tt" data-tip="CECL combines EAD (balance), PD, and LGD.">CECL</span> updates in real time below.
+      </p>
+    </div>
+
+    <div class="btnrow">
+      <button id="presetConservative" class="ghost">Conservative (higher PD/LGD)</button>
+      <button id="presetOptimistic" class="ghost">Optimistic (lower PD/LGD)</button>
+      <button id="reset">Reset</button>
+    </div>
+    <div id="err" aria-live="polite"></div>
+  </fieldset>
+
+  <!-- Charts + tables -->
+  <div>
+    <svg id="chart" viewBox="0 0 1100 640" preserveAspectRatio="xMidYMid meet"></svg>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#2563eb"></span>Aging Balances (bars)</div>
+      <div><span class="sw" style="background:#22c55e"></span>Risk Pie — Low</div>
+      <div><span class="sw" style="background:#f59e0b"></span>Risk Pie — Medium</div>
+      <div><span class="sw" style="background:#ef4444"></span>Risk Pie — High</div>
+    </div>
+
+    <div class="box">
+      <strong>Allowance Entry (period end):</strong>
+      <pre id="je" style="margin:8px 0 0; white-space:pre-wrap; font-size:12px; background:#f8fafc; padding:8px; border-radius:8px; border:1px solid #e2e8f0"></pre>
+    </div>
+
+    <div class="box">
+      <strong>CECL breakdown per bucket</strong>
+      <table>
+        <thead>
+          <tr>
+            <th>Bucket</th><th>Loans</th><th>Total Balance (₱)</th>
+            <th>PD %</th><th>LGD %</th><th>CECL (₱)</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p class="hint" style="margin-top:8px">
+        CECL per bucket = <span class="tt" data-tip="Sum of all balances in the bucket.">EAD</span> × PD × LGD.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- Sample loans (₱, realistic PH small lending) ---------- */
+const loans = [
+  { id:'L001', name:'Juan Dela Cruz',     bal:25000, dpd:15  }, // Current
+  { id:'L002', name:'Maria Santos',       bal:18500, dpd:25  }, // Current
+  { id:'L003', name:'Jose Reyes',         bal:32000, dpd:45  }, // 31–60
+  { id:'L004', name:'Ana Lopez',          bal:28500, dpd:50  }, // 31–60
+  { id:'L005', name:'Carlo Mendoza',      bal:20000, dpd:75  }, // 61–90
+  { id:'L006', name:'Lourdes Garcia',     bal:15000, dpd:85  }, // 61–90
+  { id:'L007', name:'Pedro Ramos',        bal:40000, dpd:95  }, // 91–120
+  { id:'L008', name:'Grace Bautista',     bal:22500, dpd:110 }, // 91–120
+  { id:'L009', name:'Ramon Villanueva',   bal:35000, dpd:140 }, // 120+
+  { id:'L010', name:'Maricel Aquino',     bal:30000, dpd:160 }, // 120+
+];
+
+/* ---------- Buckets & default PD/LGD ---------- */
+const buckets = [
+  { label:'Current (0–30)',   min:0,  max:30,  color:'#2563eb', risk:'low',    pd:2,  lgd:40 },
+  { label:'31–60',            min:31, max:60,  color:'#2563eb', risk:'med',    pd:5,  lgd:50 },
+  { label:'61–90',            min:61, max:90,  color:'#2563eb', risk:'med',    pd:12, lgd:60 },
+  { label:'91–120',           min:91, max:120, color:'#2563eb', risk:'high',   pd:25, lgd:70 },
+  { label:'120+',             min:121,max:9e9, color:'#2563eb', risk:'high',   pd:50, lgd:80 },
+];
+
+/* ---------- DOM ---------- */
+const el = {
+  chart: document.getElementById('chart'),
+  tbody: document.getElementById('tbody'),
+  k_out: document.getElementById('k_out'),
+  k_cecl: document.getElementById('k_cecl'),
+  k_ead: document.getElementById('k_ead'),
+  je: document.getElementById('je'),
+  err: document.getElementById('err'),
+  // sliders
+  pd0: pd0, lgd0: lgd0, pd1: pd1, lgd1: lgd1, pd2: pd2, lgd2: lgd2, pd3: pd3, lgd3: lgd3, pd4: pd4, lgd4: lgd4,
+  pd0v: pd0v, lgd0v: lgd0v, pd1v: pd1v, lgd1v: lgd1v, pd2v: pd2v, lgd2v: lgd2v, pd3v: pd3v, lgd3v: lgd3v, pd4v: pd4v, lgd4v: lgd4v,
+  presetConservative: document.getElementById('presetConservative'),
+  presetOptimistic: document.getElementById('presetOptimistic'),
+  reset: document.getElementById('reset')
+};
+
+/* ---------- Helpers ---------- */
+const peso = n => '₱' + Number(n.toFixed(2)).toLocaleString();
+function assignBuckets(loans){
+  return loans.map(L=>{
+    const idx = buckets.findIndex(b=> L.dpd>=b.min && L.dpd<=b.max);
+    return { ...L, b: idx<0? 0: idx };
+  });
+}
+function summarizeByBucket(items){
+  const sums = buckets.map(_=>({ loans:0, bal:0 }));
+  items.forEach(L=>{
+    const b = sums[L.b]; b.loans += 1; b.bal += L.bal;
+  });
+  return sums;
+}
+function getPDLGD(){
+  // read sliders (percent to decimals)
+  const pd = [el.pd0.value, el.pd1.value, el.pd2.value, el.pd3.value, el.pd4.value].map(x=> +x/100);
+  const lgd = [el.lgd0.value, el.lgd1.value, el.lgd2.value, el.lgd3.value, el.lgd4.value].map(x=> +x/100);
+  // update display
+  [el.pd0v,el.pd1v,el.pd2v,el.pd3v,el.pd4v].forEach((s,i)=> s.textContent = Math.round(pd[i]*100));
+  [el.lgd0v,el.lgd1v,el.lgd2v,el.lgd3v,el.lgd4v].forEach((s,i)=> s.textContent = Math.round(lgd[i]*100));
+  return { pd, lgd };
+}
+function calcCECL(sums, pd, lgd){
+  const cecl = sums.map((s,i)=> s.bal * pd[i] * lgd[i]);
+  const total = cecl.reduce((a,b)=>a+b,0);
+  return { cecl, total };
+}
+
+/* ---------- Draw charts (pure SVG) ---------- */
+function drawCharts(sums, ceclTotal){
+  const svg = el.chart; svg.innerHTML = '';
+  const pad = {l:70, r:20, t:40, b:60};
+  const W = 1100 - pad.l - pad.r, H = 640 - pad.t - pad.b;
+  const g = (tag,attrs={})=>{ const n=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+
+  const G = g('g',{transform:`translate(${pad.l},${pad.t})`}); svg.appendChild(G);
+  const title = g('text',{x:pad.l, y:24, fill:'#334155'}); title.textContent='Aging Balances (bars) + Risk Pie'; svg.appendChild(title);
+
+  // left: bar chart (balances per bucket)
+  const balances = sums.map(s=> s.bal);
+  const maxBal = Math.max(1, Math.ceil(Math.max(...balances)/1000)*1000);
+  const bw = (W*0.62) / (balances.length*1.6);
+  const y = v => H - (v/maxBal)*H;
+
+  // y grid
+  for(let i=0;i<=5;i++){
+    const yy = y(maxBal*i/5);
+    G.appendChild(g('line',{x1:0,y1:yy,x2:W*0.62,y2:yy,class:'axis'}));
+    const lbl = g('text',{x:-10,y:yy+4,'text-anchor':'end',fill:'#64748b',fontSize:'12'}); lbl.textContent = (maxBal*i/5).toLocaleString(); G.appendChild(lbl);
+  }
+  // x labels + bars
+  sums.forEach((s,i)=>{
+    const x = i*bw*1.6 + 24;
+    const rect = g('rect',{x, y:y(s.bal), width:bw, height:(H - y(s.bal)), fill:'#2563eb', rx:5, class:'bar'});
+    G.appendChild(rect);
+    const xl = g('text',{x:x+bw/2, y:H+18, textAnchor:'middle', fill:'#334155', fontSize:'12'}); xl.textContent = buckets[i].label; G.appendChild(xl);
+    const val = g('text',{x:x+bw/2, y:y(s.bal)-6, textAnchor:'middle', fill:'#334155', fontSize:'12'}); val.textContent = peso(s.bal); G.appendChild(val);
+  });
+
+  // right: risk pie (low/med/high by balance)
+  const pieX = W*0.75, pieY = H*0.5, R = 120;
+  const riskSums = { low:0, med:0, high:0 };
+  sums.forEach((s,i)=> riskSums[buckets[i].risk] += s.bal);
+  const pieData = [
+    {label:'Low',  val:riskSums.low,  color:'#22c55e'},
+    {label:'Med',  val:riskSums.med,  color:'#f59e0b'},
+    {label:'High', val:riskSums.high, color:'#ef4444'},
+  ];
+  const total = pieData.reduce((a,b)=>a+b.val,0) || 1;
+  let a0 = -Math.PI/2;
+  pieData.forEach(d=>{
+    const a1 = a0 + 2*Math.PI*(d.val/total);
+    const large = (a1-a0)>Math.PI ? 1:0;
+    const x0 = pieX + R*Math.cos(a0), y0 = pieY + R*Math.sin(a0);
+    const x1 = pieX + R*Math.cos(a1), y1 = pieY + R*Math.sin(a1);
+    const path = `M ${pieX} ${pieY} L ${x0} ${y0} A ${R} ${R} 0 ${large} 1 ${x1} ${y1} Z`;
+    G.appendChild(g('path',{d:path, fill:d.color, opacity: total?1:0.2}));
+    a0 = a1;
+  });
+  // pie labels
+  let ylab = pieY - 70;
+  pieData.forEach(d=>{
+    const pct = total ? ((d.val/total)*100).toFixed(1)+'%' : '0%';
+    const t = g('text',{x: pieX + 170, y: ylab, fill:'#334155', fontSize:'12'});
+    t.textContent = `${d.label}: ${pct}`; G.appendChild(t); ylab += 18;
+  });
+
+  // CECL total note
+  const note = g('text',{x: pieX - 40, y: H + 20, fill:'#334155', fontSize:'12'});
+  note.textContent = `Total CECL = ${peso(ceclTotal)}`; G.appendChild(note);
+}
+
+/* ---------- Render + compute ---------- */
+function render(){
+  try {
+    const withBuckets = assignBuckets(loans);
+    const sums = summarizeByBucket(withBuckets);
+    const {pd, lgd} = getPDLGD();
+
+    // CECL by bucket
+    const { cecl, total } = calcCECL(sums, pd, lgd);
+
+    // Top KPIs
+    const totalOut = loans.reduce((a,b)=>a+b.bal,0);
+    el.k_out.textContent  = peso(totalOut);
+    el.k_cecl.textContent = peso(total);
+    el.k_ead.textContent  = 'Balance';
+
+    // JE
+    el.je.textContent =
+`Dr Provision for Credit Losses ............. ${peso(total)}
+   Cr Allowance for Credit Losses ........... ${peso(total)}`;
+
+    // Table
+    el.tbody.innerHTML = sums.map((s,i)=>`
+      <tr>
+        <td>${buckets[i].label}</td>
+        <td>${s.loans}</td>
+        <td>${peso(s.bal)}</td>
+        <td>${Math.round(pd[i]*100)}%</td>
+        <td>${Math.round(lgd[i]*100)}%</td>
+        <td><strong>${peso(cecl[i]||0)}</strong></td>
+      </tr>
+    `).join('');
+
+    // Charts
+    drawCharts(sums, total);
+  } catch (e){
+    el.err.style.display='block';
+    el.err.textContent = 'Error: ' + e.message;
+  }
+}
+
+/* ---------- Presets + events ---------- */
+['pd0','lgd0','pd1','lgd1','pd2','lgd2','pd3','lgd3','pd4','lgd4'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', render);
+});
+
+el.presetConservative.addEventListener('click', ()=>{
+  [pd0,pd1,pd2,pd3,pd4].forEach((s,i)=> s.value = [4,8,18,35,60][i]);
+  [lgd0,lgd1,lgd2,lgd3,lgd4].forEach((s,i)=> s.value = [50,60,65,75,85][i]);
+  render();
+});
+el.presetOptimistic.addEventListener('click', ()=>{
+  [pd0,pd1,pd2,pd3,pd4].forEach((s,i)=> s.value = [1,3,8,18,40][i]);
+  [lgd0,lgd1,lgd2,lgd3,lgd4].forEach((s,i)=> s.value = [30,40,50,60,70][i]);
+  render();
+});
+el.reset.addEventListener('click', ()=>{
+  [pd0.value, pd1.value, pd2.value, pd3.value, pd4.value] = [2,5,12,25,50];
+  [lgd0.value,lgd1.value,lgd2.value,lgd3.value,lgd4.value]=[40,50,60,70,80];
+  render();
+});
+
+/* ---------- init ---------- */
+render();
+</script>
+</body>
+</html>
