@@ -1,44 +1,300 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>CMA Visualizers</title>
+  <style>
+    :root {
+      --bg: #0b0b0c;
+      --card: rgba(255,255,255,0.06);
+      --text: #f5f5f7;
+      --text-dim: #a1a1a6;
+      --accent: #2997ff; /* Apple-ish blue */
+      --border: rgba(255,255,255,0.12);
+      --shadow: 0 10px 30px rgba(0,0,0,0.35);
+      --radius: 18px;
+      --maxw: 1200px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #ffffff;
+        --card: rgba(0,0,0,0.04);
+        --text: #0b0b0c;
+        --text-dim: #545458;
+        --border: rgba(0,0,0,0.08);
+        --shadow: 0 10px 30px rgba(0,0,0,0.08);
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: radial-gradient(1200px 800px at 80% -10%, rgba(41,151,255,0.15), transparent 60%),
+                  radial-gradient(900px 600px at -10% 20%, rgba(255,92,92,0.10), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    /* Header */
+    .nav {
+      position: sticky; top: 0; z-index: 50;
+      backdrop-filter: saturate(180%) blur(14px);
+      background: linear-gradient(to bottom, rgba(0,0,0,0.35), rgba(0,0,0,0.0));
+      border-bottom: 1px solid var(--border);
+    }
+    @media (prefers-color-scheme: light) {
+      .nav { background: rgba(255,255,255,0.7); }
+    }
+    .nav-inner {
+      max-width: var(--maxw); margin: 0 auto; padding: 14px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .brand { font-weight: 700; letter-spacing: -0.02em; }
+    .brand .dot { color: var(--accent); }
+    .tabs { display: flex; gap: 10px; flex-wrap: wrap; }
+    .tab { color: var(--text-dim); text-decoration: none; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--border); }
+    .tab:hover { color: var(--text); border-color: var(--text-dim); }
+
+    /* Hero */
+    .hero { max-width: var(--maxw); margin: 40px auto 10px; padding: 0 20px; text-align: center; }
+    .hero h1 { font-size: clamp(28px, 4vw, 48px); margin: 0 0 10px; letter-spacing: -0.03em; }
+    .hero p { margin: 0; color: var(--text-dim); font-size: clamp(14px, 1.8vw, 18px); }
+
+    /* Search */
+    .search-wrap { max-width: var(--maxw); margin: 30px auto; padding: 0 20px; }
+    .search {
+      width: 100%; padding: 14px 16px 14px 46px; border-radius: 14px; border: 1px solid var(--border);
+      background: var(--card); color: var(--text); outline: none; box-shadow: var(--shadow);
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="%23a1a1a6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>');
+      background-repeat: no-repeat; background-position: 14px center;
+    }
+
+    /* Sections */
+    section { max-width: var(--maxw); margin: 34px auto; padding: 0 20px; }
+    .section-header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 16px; }
+    .section-title { font-size: 22px; margin: 0; letter-spacing: -0.02em; }
+    .section-note { color: var(--text-dim); font-size: 14px; }
+
+    .grid { display: grid; gap: 16px; grid-template-columns: repeat(1, minmax(0,1fr)); }
+    @media (min-width: 640px) { .grid { grid-template-columns: repeat(2, minmax(0,1fr)); } }
+    @media (min-width: 1024px) { .grid { grid-template-columns: repeat(3, minmax(0,1fr)); } }
+
+    .card { position: relative; border-radius: var(--radius); border: 1px solid var(--border); background: var(--card); padding: 18px; box-shadow: var(--shadow); transition: transform .2s ease, border-color .2s ease; min-height: 120px; display: flex; flex-direction: column; gap: 8px; }
+    .card:hover { transform: translateY(-2px); border-color: var(--text-dim); }
+    .badge { position: absolute; top: 12px; right: 12px; font-size: 12px; padding: 4px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--text-dim); background: rgba(0,0,0,0.08); }
+    @media (prefers-color-scheme: light) { .badge { background: rgba(255,255,255,0.6); } }
+    .card h3 { margin: 6px 0 0; font-size: 18px; letter-spacing: -0.01em; }
+    .card p { margin: 0; color: var(--text-dim); font-size: 14px; }
+    .card a { margin-top: auto; align-self: flex-start; text-decoration: none; color: var(--accent); font-weight: 600; }
+    .card a:hover { text-decoration: underline; }
+
+    /* Footer */
+    footer { max-width: var(--maxw); margin: 40px auto 60px; padding: 0 20px; color: var(--text-dim); font-size: 12px; text-align: center; }
+  </style>
 </head>
 <body>
-  <h1>My CMA Part 1 Visualizers</h1>
+  <!-- NAV -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <div class="brand">CMA Visualizers<span class="dot">.</span></div>
+      <div class="tabs">
+        <a class="tab" href="#A">A</a>
+        <a class="tab" href="#B">B</a>
+        <a class="tab" href="#C">C</a>
+        <a class="tab" href="#D">D</a>
+        <a class="tab" href="#E">E</a>
+        <a class="tab" href="#F">F</a>
+      </div>
+    </div>
+  </nav>
 
-  <h2>Section A – External Financial Reporting Decisions</h2>
-  <ul>
-    <li><a href="Depreciation.html">Depreciation</a></li>
-    <li><a href="inventory_cost_flow.html">Inventory Cost</a></li>
-    <li><a href="cecl.html">CECL</a></li>
-  </ul>
+  <!-- HERO -->
+  <header class="hero">
+    <h1>Clean. Minimal. CMA-ready.</h1>
+    <p>Your Part 1 toolkit — grouped by sections A–F, with fast search and simple, elegant cards.</p>
+  </header>
 
-  <h2>Section B – Planning, Budgeting & Forecasting</h2>
-  <ul>
-    <li>—</li>
-  </ul>
+  <!-- SEARCH -->
+  <div class="search-wrap">
+    <input id="search" class="search" type="search" placeholder="Search visualizers (e.g., depreciation, variance, CECL)…" />
+  </div>
 
-  <h2>Section C – Performance Management</h2>
-  <ul>
-    <li>—</li>
-  </ul>
+  <!-- SECTION A -->
+  <section id="A" data-section="A">
+    <div class="section-header">
+      <h2 class="section-title">Section A — External Financial Reporting Decisions</h2>
+      <div class="section-note">3 items</div>
+    </div>
+    <div class="grid">
+      <!-- Depreciation -->
+      <article class="card" data-tags="depreciation assets ppe methods double-declining straight-line macrs section-a">
+        <span class="badge">A</span>
+        <h3>Depreciation</h3>
+        <p>Compare methods, lives, salvage, and book value timelines.</p>
+        <a href="Depreciation.html">Open</a>
+      </article>
+      <!-- Inventory Cost Flow -->
+      <article class="card" data-tags="inventory fifo lifo weighted average cost flow lower of cost nrv section-a">
+        <span class="badge">A</span>
+        <h3>Inventory Cost Flow</h3>
+        <p>FIFO vs. Weighted‑Average with price trend sensitivity.</p>
+        <a href="inventory_cost_flow.html">Open</a>
+      </article>
+      <!-- CECL -->
+      <article class="card" data-tags="cecl allowance expected credit loss receivables aging pd lgd ecl section-a">
+        <span class="badge">A</span>
+        <h3>CECL</h3>
+        <p>Build forward‑looking loss estimates from loan aging.</p>
+        <a href="cecl.html">Open</a>
+      </article>
+    </div>
+  </section>
 
-  <h2>Section D – Cost Management</h2>
-  <ul>
-    <li><a href="processcosting.html">Process Costing</a></li>
-    <li><a href="jointcost.html">Joint Product Cost Allocation</a></li>
-  </ul>
+  <!-- SECTION B -->
+  <section id="B" data-section="B">
+    <div class="section-header">
+      <h2 class="section-title">Section B — Planning, Budgeting & Forecasting</h2>
+      <div class="section-note">Coming soon</div>
+    </div>
+    <div class="grid">
+      <article class="card" data-tags="planning budgeting forecasting variance scenarios placeholder section-b">
+        <span class="badge">B</span>
+        <h3>Coming Soon</h3>
+        <p>Budget models, rolling forecasts, and what‑if tools.</p>
+        <a href="#">—</a>
+      </article>
+    </div>
+  </section>
 
-  <h2>Section E – Internal Controls</h2>
-  <ul>
-    <li><a href="segregate.html">Segregation of Duties</a></li>
-    <li><a href="risk.html">RISK QUIZ</a></li>
-  </ul>
+  <!-- SECTION C -->
+  <section id="C" data-section="C">
+    <div class="section-header">
+      <h2 class="section-title">Section C — Performance Management</h2>
+      <div class="section-note">Coming soon</div>
+    </div>
+    <div class="grid">
+      <article class="card" data-tags="kpis variance analysis profitability dashboards placeholder section-c">
+        <span class="badge">C</span>
+        <h3>Coming Soon</h3>
+        <p>KPIs, dashboards, and variance bridge visualizations.</p>
+        <a href="#">—</a>
+      </article>
+    </div>
+  </section>
 
-  <h2>Section F – Technology and Analytics</h2>
-  <ul>
-    <li>—</li>
-  </ul>
+  <!-- SECTION D -->
+  <section id="D" data-section="D">
+    <div class="section-header">
+      <h2 class="section-title">Section D — Cost Management</h2>
+      <div class="section-note">2 items</div>
+    </div>
+    <div class="grid">
+      <!-- Process Costing -->
+      <article class="card" data-tags="costing wip eupu equivalent units process fifo weighted-average section-d">
+        <span class="badge">D</span>
+        <h3>Process Costing</h3>
+        <p>Compute EUP, cost per unit, FIFO vs. Weighted‑Avg.</p>
+        <a href="processcosting.html">Open</a>
+      </article>
+      <!-- Joint Cost -->
+      <article class="card" data-tags="joint cost allocation sales value at split off nrv physical measures section-d">
+        <span class="badge">D</span>
+        <h3>Joint Product Cost Allocation</h3>
+        <p>Allocate pre‑split costs using SVSO, NRV, or physical units.</p>
+        <a href="jointcost.html">Open</a>
+      </article>
+    </div>
+  </section>
 
+  <!-- SECTION E -->
+  <section id="E" data-section="E">
+    <div class="section-header">
+      <h2 class="section-title">Section E — Internal Controls</h2>
+      <div class="section-note">2 items</div>
+    </div>
+    <div class="grid">
+      <!-- Segregation of Duties -->
+      <article class="card" data-tags="internal controls sod segregation duties risk prevention detective corrective section-e">
+        <span class="badge">E</span>
+        <h3>Segregation of Duties</h3>
+        <p>Assign roles and flag conflicts across cycles.</p>
+        <a href="segregate.html">Open</a>
+      </article>
+      <!-- Risk Quiz -->
+      <article class="card" data-tags="risk quiz internal controls assessment control environment section-e">
+        <span class="badge">E</span>
+        <h3>Risk Quiz</h3>
+        <p>Classify risks and match the right control responses.</p>
+        <a href="risk.html">Open</a>
+      </article>
+    </div>
+  </section>
+
+  <!-- SECTION F -->
+  <section id="F" data-section="F">
+    <div class="section-header">
+      <h2 class="section-title">Section F — Technology & Analytics</h2>
+      <div class="section-note">Coming soon</div>
+    </div>
+    <div class="grid">
+      <article class="card" data-tags="data analytics visualization automation rpa ai placeholder section-f">
+        <span class="badge">F</span>
+        <h3>Coming Soon</h3>
+        <p>Analytics demos, dashboard templates, and quick automations.</p>
+        <a href="#">—</a>
+      </article>
+    </div>
+  </section>
+
+  <footer>
+    © <span id="year"></span> CMA Visualizers. Built for speed and clarity.
+  </footer>
+
+  <script>
+    // Live filter by search text
+    const search = document.getElementById('search');
+    const cards = Array.from(document.querySelectorAll('.card'));
+    const sectionNotes = Array.from(document.querySelectorAll('.section-note'));
+
+    function updateCounts() {
+      const sections = Array.from(document.querySelectorAll('section'));
+      sections.forEach(sec => {
+        const visible = sec.querySelectorAll('.card:not([hidden])').length;
+        const note = sec.querySelector('.section-note');
+        if (!note) return;
+        const label = sec.dataset.section;
+        note.textContent = visible ? `${visible} item${visible>1?'s':''}` : 'No matches';
+      });
+    }
+
+    function filter() {
+      const q = search.value.trim().toLowerCase();
+      cards.forEach(card => {
+        const text = card.innerText.toLowerCase() + ' ' + (card.dataset.tags||'');
+        card.hidden = q && !text.includes(q);
+      });
+      updateCounts();
+    }
+    search.addEventListener('input', filter);
+    updateCounts();
+
+    // Smooth scroll for tabs
+    document.querySelectorAll('.tab').forEach(a => {
+      a.addEventListener('click', (e) => {
+        const id = a.getAttribute('href');
+        const target = document.querySelector(id);
+        if (target) {
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // Year
+    document.getElementById('year').textContent = new Date().getFullYear();
+  </script>
 </body>
 </html>
