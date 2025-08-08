@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Inventory Cost Flow — FIFO / LIFO / Weighted Avg (Periodic & Perpetual) • Interactive SVG</title>
+<style>
+  :root { --w: 1100px; --h: 630px; }
+  body { font-family: Inter, system-ui, Arial; background:#f6f7fb; color:#111; margin:24px; }
+  h2 { margin:0 0 6px }
+  .sub { margin:0 0 14px; color:#555 }
+  .wrap { display:grid; grid-template-columns: 420px 1fr; gap:16px; align-items:start; }
+  fieldset { background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:12px; }
+  legend { padding:0 6px; font-weight:600 }
+  label { display:block; font-size:12px; color:#333; margin:10px 0 4px; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .row3{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+  input[type=range] { width:100% }
+  .val { font-variant-numeric: tabular-nums; font-weight:600; margin-left:6px; }
+  .hint { font-size:11px; color:#666; }
+  .btnrow { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px }
+  button { cursor:pointer; background:#111827; color:#fff; border:none; border-radius:10px; padding:8px 10px; font-size:13px }
+  .ghost{ background:#fff; color:#111; border:1px solid #cfd2dc }
+  .soft { background:#0ea5e9 }
+  svg { background:#fff; border:1px solid #e5e7ef; border-radius:12px; width:var(--w); height:var(--h); }
+  .legend { display:flex; gap:14px; font-size:12px; color:#333; margin:8px 0; flex-wrap:wrap }
+  .sw { width:12px; height:12px; display:inline-block; border-radius:2px; margin-right:6px }
+  .kpis { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:8px }
+  .kpi { background:#fff; border:1px solid #e5e7ef; border-radius:12px; padding:10px }
+  .kpi .v { font-weight:700; font-size:18px }
+  table { width:100%; border-collapse:collapse; background:#fff; border:1px solid #e5e7ef; border-radius:12px; overflow:hidden; margin-top:10px }
+  th,td { padding:8px 10px; border-bottom:1px solid #eef2f7; font-size:12px; text-align:right }
+  th:first-child, td:first-child { text-align:left }
+  tr:last-child td { border-bottom:none }
+  .bar { transition: height .35s ease, y .35s ease; }
+  .xlab { font-size:12px; fill:#334155; text-anchor:middle }
+  .ylab, .title { font-size:12px; fill:#334155 }
+  .title { font-weight:700 }
+  .unit { font-size:11px; fill:#64748b }
+  .line { stroke:#e2e8f0; stroke-width:1 }
+  .pill { font-size:11px; color:#0f172a; background:#e2e8f0; padding:2px 8px; border-radius:999px; display:inline-block; }
+  .callout { background:#fff; border:1px dashed #cbd5e1; border-radius:12px; padding:10px; margin-top:10px; font-size:12px; color:#334155 }
+  #err { color:#b91c1c; font-size:12px; display:none; margin-top:6px }
+</style>
+</head>
+<body>
+<h2>Inventory Cost Flow — Interactive (Periodic & Perpetual)</h2>
+<p class="sub">Move the sliders to see how **FIFO**, **LIFO**, and **Weighted Average** change **Ending Inventory** and **COGS**. Toggle **Periodic** vs **Perpetual (Moving Avg / LIFO Perpetual)** and adjust when sales happen.</p>
+
+<div class="wrap">
+  <fieldset>
+    <legend>System & Timing</legend>
+    <label>Valuation system</label>
+    <div class="row">
+      <select id="system">
+        <option value="periodic" selected>Periodic</option>
+        <option value="perpetual">Perpetual</option>
+      </select>
+      <select id="timing">
+        <option value="end" selected>Sales at end of period</option>
+        <option value="even">Sales evenly after each purchase</option>
+      </select>
+    </div>
+    <div class="callout">
+      <span class="pill">ELI5</span> Periodic = compute once at month-end. Perpetual = update cost **every time you buy** (moving average) and LIFO sells newest **as you go**. To actually see differences, set <b>Perpetual</b> + <b>Sales evenly</b>.
+    </div>
+  </fieldset>
+
+  <div></div>
+</div>
+
+<div class="wrap">
+  <fieldset>
+    <legend>Layers (Beginning + 3 Purchases)</legend>
+
+    <label>Beginning Inventory</label>
+    <div class="row">
+      <div>
+        <span class="hint">Qty</span><br/>
+        <input id="q0" type="number" value="100" min="0" step="10" />
+      </div>
+      <div>
+        <span class="hint">Unit cost (₱)</span><br/>
+        <input id="p0" type="number" value="10" min="0" step="0.5" />
+      </div>
+    </div>
+
+    <label>Purchase 1 — Qty <span class="val" id="q1v">120</span> • Unit cost <span class="val">₱<span id="p1v">12.00</span></span></label>
+    <div class="row">
+      <input id="q1" type="range" min="0" max="300" step="10" value="120" />
+      <input id="p1" type="range" min="6" max="22" step="0.1" value="12" />
+    </div>
+
+    <label>Purchase 2 — Qty <span class="val" id="q2v">150</span> • Unit cost <span class="val">₱<span id="p2v">14.00</span></span></label>
+    <div class="row">
+      <input id="q2" type="range" min="0" max="300" step="10" value="150" />
+      <input id="p2" type="range" min="6" max="22" step="0.1" value="14" />
+    </div>
+
+    <label>Purchase 3 — Qty <span class="val" id="q3v">130</span> • Unit cost <span class="val">₱<span id="p3v">16.00</span></span></label>
+    <div class="row">
+      <input id="q3" type="range" min="0" max="300" step="10" value="130" />
+      <input id="p3" type="range" min="6" max="22" step="0.1" value="16" />
+    </div>
+
+    <label>Units Sold (period total)</label>
+    <input id="sold" type="range" min="0" max="500" step="10" value="350" />
+    <div class="hint">Perpetual + “Sales evenly” will split sales into 3 equal chunks (after P1, P2, P3). That’s what makes LIFO & Moving Avg differ from periodic.</div>
+
+    <div class="btnrow">
+      <button id="presetUp"  class="ghost">Preset: Rising prices (10 → 20)</button>
+      <button id="presetDown" class="ghost">Preset: Falling prices (20 → 10)</button>
+      <button id="presetFlat" class="ghost">Preset: Flat prices</button>
+      <button id="randomize" class="ghost">Randomize</button>
+      <button id="reset" class="soft">Reset</button>
+    </div>
+
+    <div id="err" aria-live="polite"></div>
+  </fieldset>
+
+  <div>
+    <svg id="chart" viewBox="0 0 1100 630" preserveAspectRatio="xMidYMid meet"></svg>
+
+    <div class="legend">
+      <div><span class="sw" style="background:#2563eb"></span>FIFO — Ending Inv</div>
+      <div><span class="sw" style="background:#93c5fd"></span>FIFO — COGS</div>
+      <div><span class="sw" style="background:#16a34a"></span>LIFO — Ending Inv</div>
+      <div><span class="sw" style="background:#86efac"></span>LIFO — COGS</div>
+      <div><span class="sw" style="background:#ef4444"></span>WA — Ending Inv</div>
+      <div><span class="sw" style="background:#fca5a5"></span>WA — COGS</div>
+    </div>
+
+    <div class="kpis" id="kpis"></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Method</th><th>System</th><th>Avg (if WA)</th>
+          <th>Ending Inv (₱)</th><th>COGS (₱)</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+
+    <div class="callout">
+      <span class="pill">Exam tips</span>
+      <ul>
+        <li><b>Rising prices:</b> FIFO → higher <i>Ending Inv</i>, lower <i>COGS</i>. LIFO → lower <i>Ending Inv</i>, higher <i>COGS</i>. WA sits in the middle.</li>
+        <li><b>Periodic vs Perpetual:</b> FIFO matches either way; <b>LIFO</b> and <b>Average</b> can differ. Use “Perpetual + Sales evenly” to see it.</li>
+        <li>COGS + Ending Inv = Goods Available for Sale (guardrail check).</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const el = {
+  system: document.getElementById('system'),
+  timing: document.getElementById('timing'),
+  q0: document.getElementById('q0'), p0: document.getElementById('p0'),
+  q1: document.getElementById('q1'), p1: document.getElementById('p1'),
+  q2: document.getElementById('q2'), p2: document.getElementById('p2'),
+  q3: document.getElementById('q3'), p3: document.getElementById('p3'),
+  q1v: document.getElementById('q1v'), q2v: document.getElementById('q2v'), q3v: document.getElementById('q3v'),
+  p1v: document.getElementById('p1v'), p2v: document.getElementById('p2v'), p3v: document.getElementById('p3v'),
+  sold: document.getElementById('sold'),
+  chart: document.getElementById('chart'),
+  tbody: document.getElementById('tbody'),
+  kpis: document.getElementById('kpis'),
+  err: document.getElementById('err'),
+  presetUp: document.getElementById('presetUp'),
+  presetDown: document.getElementById('presetDown'),
+  presetFlat: document.getElementById('presetFlat'),
+  randomize: document.getElementById('randomize'),
+  reset: document.getElementById('reset'),
+};
+
+const COLORS = {
+  fifoEI:'#2563eb', fifoCOGS:'#93c5fd',
+  lifoEI:'#16a34a', lifoCOGS:'#86efac',
+  waEI:'#ef4444',   waCOGS:'#fca5a5'
+};
+
+function fmt(n){ return Number(n.toFixed(2)).toLocaleString(); }
+function layer(q, p){ return {q:+q, p:+p}; }
+function deepCopy(arr){ return arr.map(x=>({q:x.q, p:x.p})); }
+
+function sellFIFO(layers, qty){
+  let soldCost = 0, remain = qty;
+  for (const L of layers){
+    if (remain<=0) break;
+    const take = Math.min(L.q, remain);
+    soldCost += take * L.p;
+    L.q -= take; remain -= take;
+  }
+  const EI = layers.reduce((s,L)=>s + L.q*L.p, 0);
+  return {COGS:soldCost, EI};
+}
+function sellLIFO(layers, qty){
+  let soldCost = 0, remain = qty;
+  for (let i=layers.length-1; i>=0; i--){
+    if (remain<=0) break;
+    const L = layers[i];
+    const take = Math.min(L.q, remain);
+    soldCost += take * L.p;
+    L.q -= take; remain -= take;
+  }
+  const EI = layers.reduce((s,L)=>s + L.q*L.p, 0);
+  return {COGS:soldCost, EI};
+}
+function periodicWA(layers, qtySold){
+  const units = layers.reduce((s,L)=>s+L.q,0);
+  const cost  = layers.reduce((s,L)=>s+L.q*L.p,0);
+  const avg = units>0 ? cost/units : 0;
+  const sold = Math.min(qtySold, units);
+  return {avg, COGS: sold*avg, EI: (units-sold)*avg};
+}
+
+// Perpetual simulation (events in time)
+function perpetualSim(begin, purchases, salesChunks){
+  // begin: {q,p}
+  // purchases: [{q,p}, ...] in time order
+  // salesChunks: number[] amounts, where sales happen after each purchase
+  // Running state:
+  let fifoLayers = [layer(begin.q, begin.p)];
+  let lifoLayers = [layer(begin.q, begin.p)];
+  let waUnits = begin.q, waCost = begin.q * begin.p; // moving average
+  let lifoCOGS=0, fifoCOGS=0, waCOGS=0;
+  // iterate purchases
+  for(let i=0;i<purchases.length;i++){
+    const pu = purchases[i];
+    // add layer
+    fifoLayers.push(layer(pu.q, pu.p));
+    lifoLayers.push(layer(pu.q, pu.p));
+    // update moving average on purchase
+    waUnits += pu.q; waCost += pu.q * pu.p;
+    // sale chunk after this purchase if any
+    const sale = salesChunks[i] || 0;
+    if (sale>0){
+      // FIFO sale
+      const fifoRes = sellFIFO(fifoLayers, sale);
+      fifoCOGS += fifoRes.COGS; fifoLayers = rebuildLayersFromEI(fifoLayers);
+      // LIFO sale
+      const lifoRes = sellLIFO(lifoLayers, sale);
+      lifoCOGS += lifoRes.COGS; lifoLayers = rebuildLayersFromEI(lifoLayers);
+      // WA sale at current moving avg
+      const avg = waUnits>0 ? waCost/waUnits : 0;
+      const take = Math.min(sale, waUnits);
+      waCOGS += take * avg;
+      waUnits -= take; waCost -= take * avg;
+    }
+  }
+  // Ending values:
+  const fifoEI = fifoLayers.reduce((s,L)=>s+L.q*L.p,0);
+  const lifoEI = lifoLayers.reduce((s,L)=>s+L.q*L.p,0);
+  const waEI   = waCost; // value remaining at moving average
+  return {
+    fifo:{COGS:fifoCOGS, EI:fifoEI},
+    lifo:{COGS:lifoCOGS, EI:lifoEI},
+    wa:{avg: waUnits>0? waCost/waUnits:0, COGS:waCOGS, EI:waEI}
+  };
+}
+function rebuildLayersFromEI(layers){ // keep non-zero layers only (for visual correctness)
+  return layers.filter(L=>L.q>0).map(L=>({q:L.q, p:L.p}));
+}
+
+function compute(){
+  try{
+    el.err.style.display='none'; el.err.textContent='';
+    // Read inputs
+    const q0 = Math.max(0, +el.q0.value || 0);
+    const p0 = Math.max(0, +el.p0.value || 0);
+    const q1 = +el.q1.value, q2 = +el.q2.value, q3 = +el.q3.value;
+    const p1 = +el.p1.value, p2 = +el.p2.value, p3 = +el.p3.value;
+    const system = el.system.value;
+    const timing = el.timing.value;
+
+    el.q1v.textContent = q1; el.q2v.textContent = q2; el.q3v.textContent = q3;
+    el.p1v.textContent = p1.toFixed(2); el.p2v.textContent = p2.toFixed(2); el.p3v.textContent = p3.toFixed(2);
+
+    const layers = [ layer(q0,p0), layer(q1,p1), layer(q2,p2), layer(q3,p3) ];
+    const totalUnits = layers.reduce((s,L)=>s+L.q,0);
+    const totalCost  = layers.reduce((s,L)=>s+L.q*L.p,0);
+    const sold = Math.min(+el.sold.value, totalUnits);
+    el.sold.max = totalUnits;
+
+    let fifo, lifo, wa;
+    if (system==='periodic'){
+      fifo = sellFIFO(deepCopy(layers), sold);
+      lifo = sellLIFO(deepCopy(layers), sold);
+      wa   = periodicWA(deepCopy(layers), sold);
+    } else {
+      // Perpetual: build sequence
+      const begin = {q:q0, p:p0};
+      const purchases = [ {q:q1,p:p1}, {q:q2,p:p2}, {q:q3,p:p3} ];
+      let salesChunks = [0,0,0];
+      if (timing==='even'){
+        const chunk = Math.floor(sold/3);
+        salesChunks = [chunk, chunk, sold - 2*chunk];
+      } else {
+        // end of period => one sale after last purchase
+        salesChunks = [0,0,sold];
+      }
+      const sims = perpetualSim(begin, purchases, salesChunks);
+      fifo = sims.fifo; lifo = sims.lifo; wa = sims.wa;
+    }
+
+    // Guardrail: show KPIs
+    const availUnits = totalUnits;
+    const kpiHTML = `
+      <div class="kpi"><div class="muted">Units Available</div><div class="v">${availUnits.toLocaleString()}</div></div>
+      <div class="kpi"><div class="muted">Goods Available (₱)</div><div class="v">₱${fmt(totalCost)}</div></div>
+      <div class="kpi"><div class="muted">Units Sold</div><div class="v">${sold.toLocaleString()}</div></div>
+      <div class="kpi"><div class="muted">Units in Ending Inv</div><div class="v">${(availUnits - sold).toLocaleString()}</div></div>
+    `;
+    el.kpis.innerHTML = kpiHTML;
+
+    // Table
+    const rows = [
+      ['FIFO', system, '-', fifo.EI, fifo.COGS],
+      ['LIFO', system, '-', lifo.EI, lifo.COGS],
+      ['Weighted Avg', system, '₱'+fmt(wa.avg || 0), wa.EI, wa.COGS],
+    ];
+    el.tbody.innerHTML = rows.map(r=>`
+      <tr>
+        <td>${r[0]}</td>
+        <td>${r[1][0].toUpperCase()+r[1].slice(1)}</td>
+        <td>${r[2]}</td>
+        <td>₱${fmt(r[3])}</td>
+        <td>₱${fmt(r[4])}</td>
+      </tr>
+    `).join('');
+
+    drawChart({fifo, lifo, wa});
+    // Identity check: small tolerance for rounding on WA
+    const sumFIFO = fifo.EI + fifo.COGS, sumLIFO=lifo.EI + lifo.COGS, sumWA=(wa.EI + wa.COGS);
+    const ok = Math.abs(sumFIFO - totalCost)<0.01 && Math.abs(sumLIFO - totalCost)<0.01 && Math.abs(sumWA - totalCost)<0.02;
+    if(!ok){ el.err.style.display='block'; el.err.textContent = 'Heads up: rounding drift detected in WA; totals may differ by a few centavos.'; }
+  } catch(e){
+    el.err.style.display='block';
+    el.err.textContent = 'Error: '+e.message;
+  }
+}
+
+function drawChart(data){
+  const svg = el.chart; svg.innerHTML = '';
+  const pad = {l:90, r:20, t:48, b:65};
+  const W = 1100 - pad.l - pad.r;
+  const H = 630 - pad.t - pad.b;
+  const g = (tag, attrs={}) => { const n=document.createElementNS('http://www.w3.org/2000/svg',tag); for (const k in attrs) n.setAttribute(k, attrs[k]); return n; };
+
+  const title = g('text',{x:pad.l, y:24, class:'title'}); title.textContent='Ending Inventory vs COGS (₱)'; svg.appendChild(title);
+  const ylab = g('text',{x:10, y:pad.t+12, class:'ylab'}); ylab.textContent='₱'; svg.appendChild(ylab);
+  const unit = g('text',{x:pad.l, y:615, class:'unit'}); unit.textContent='Methods'; svg.appendChild(unit);
+
+  const G = g('g',{transform:`translate(${pad.l},${pad.t})`});
+  svg.appendChild(G);
+
+  const maxVal = Math.max(data.fifo.EI, data.fifo.COGS, data.lifo.EI, data.lifo.COGS, data.wa.EI, data.wa.COGS);
+  const ymax = Math.max(1, Math.ceil(maxVal/1000)*1000);
+  const y = v => H - (v / ymax) * H;
+
+  // grid
+  const steps = 5;
+  for(let i=0;i<=steps;i++){
+    const yy = H - (i/steps)*H;
+    G.appendChild(g('line',{x1:0,y1:yy,x2:W,y2:yy, class:'line'}));
+    const lbl = g('text',{x:-12, y:yy+4, 'text-anchor':'end', class:'ylab'}); lbl.textContent = (ymax*i/steps).toLocaleString(); G.appendChild(lbl);
+  }
+
+  const groups = ['FIFO','LIFO','Weighted Avg'];
+  const band = W / groups.length;
+  const barW = 44;
+
+  function drawGroup(ix, ei, cogs, colEI, colCOGS){
+    const x0 = ix*band + band/2;
+    const eiRect = g('rect',{x:x0-56, width:barW, y:y(ei), height:(H - y(ei)), fill:colEI, class:'bar', rx:5});
+    const cogsRect = g('rect',{x:x0+12, width:barW, y:y(cogs), height:(H - y(cogs)), fill:colCOGS, class:'bar', rx:5});
+    G.appendChild(eiRect); G.appendChild(cogsRect);
+    const xl = g('text',{x:x0, y:H+24, class:'xlab'}); xl.textContent = groups[ix]; G.appendChild(xl);
+    const eiV = g('text',{x:x0-56+barW/2, y:y(ei)-6, class:'xlab'}); eiV.textContent = '₱'+fmt(ei); G.appendChild(eiV);
+    const cgV = g('text',{x:x0+12+barW/2, y:y(cogs)-6, class:'xlab'}); cgV.textContent = '₱'+fmt(cogs); G.appendChild(cgV);
+  }
+
+  drawGroup(0, data.fifo.EI, data.fifo.COGS, COLORS.fifoEI, COLORS.fifoCOGS);
+  drawGroup(1, data.lifo.EI, data.lifo.COGS, COLORS.lifoEI, COLORS.lifoCOGS);
+  drawGroup(2, data.wa.EI,   data.wa.COGS,   COLORS.waEI,   COLORS.waCOGS);
+}
+
+// Events
+['input','change'].forEach(evt=>{
+  [el.system, el.timing, el.q0, el.p0, el.q1, el.p1, el.q2, el.p2, el.q3, el.p3, el.sold].forEach(x=> x.addEventListener(evt, compute));
+});
+
+el.presetUp.addEventListener('click', ()=>{
+  el.p1.value = 12; el.p2.value = 16; el.p3.value = 20; compute();
+});
+el.presetDown.addEventListener('click', ()=>{
+  el.p1.value = 20; el.p2.value = 14; el.p3.value = 10; compute();
+});
+el.presetFlat.addEventListener('click', ()=>{
+  el.p1.value = 12; el.p2.value = 12; el.p3.value = 12; compute();
+});
+el.randomize.addEventListener('click', ()=>{
+  const r = () => (8 + Math.random()*12).toFixed(1);
+  el.p1.value = r(); el.p2.value = r(); el.p3.value = r();
+  el.q1.value = Math.round(50 + Math.random()*250);
+  el.q2.value = Math.round(50 + Math.random()*250);
+  el.q3.value = Math.round(50 + Math.random()*250);
+  compute();
+});
+el.reset.addEventListener('click', ()=>{
+  el.system.value='periodic'; el.timing.value='end';
+  el.q0.value = 100; el.p0.value = 10;
+  el.q1.value = 120; el.p1.value = 12;
+  el.q2.value = 150; el.p2.value = 14;
+  el.q3.value = 130; el.p3.value = 16;
+  el.sold.value = 350;
+  compute();
+});
+
+// init
+compute();
+</script>
+</body>
+</html>
