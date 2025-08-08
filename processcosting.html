@@ -2,40 +2,22 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Process Costing Flow</title>
+<title>Process Costing Flow with Counts</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    text-align: center;
-    margin-top: 20px;
-  }
-  svg {
-    background: #f8f8f8;
-    border: 1px solid #ccc;
-  }
-  .stage {
-    fill: #d1e7dd;
-    stroke: #0f5132;
-    stroke-width: 2px;
-  }
-  .arrow {
-    stroke: #0f5132;
-    stroke-width: 2px;
-    marker-end: url(#arrowhead);
-  }
-  .unit {
-    fill: #0d6efd;
-    stroke: white;
-    stroke-width: 1px;
-  }
+  body { font-family: Arial, sans-serif; text-align: center; margin-top: 20px; }
+  svg { background: #f8f8f8; border: 1px solid #ccc; }
+  .stage { fill: #d1e7dd; stroke: #0f5132; stroke-width: 2px; }
+  .arrow { stroke: #0f5132; stroke-width: 2px; marker-end: url(#arrowhead); }
+  .unit { fill: #0d6efd; stroke: white; stroke-width: 1px; }
+  .count-label { font-size: 14px; fill: #000; font-weight: bold; }
 </style>
 </head>
 <body>
 
 <h1>Process Costing Animation</h1>
-<p>This animation shows how units move from Raw Materials → WIP → Finished Goods → COGS.</p>
+<p>Shows how units move from Raw Materials → WIP → Finished Goods → COGS, with live counts in each stage.</p>
 
-<svg id="flowSVG" width="800" height="200">
+<svg id="flowSVG" width="850" height="250">
   <defs>
     <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
       <polygon points="0 0, 10 3.5, 0 7" fill="#0f5132"/>
@@ -43,37 +25,69 @@
   </defs>
 
   <!-- Stages -->
-  <rect x="50" y="50" width="150" height="100" class="stage"/>
-  <text x="125" y="115" text-anchor="middle" font-size="16">Raw Materials</text>
+  <rect x="50" y="80" width="150" height="100" class="stage"/>
+  <text x="125" y="145" text-anchor="middle" font-size="16">Raw Materials</text>
+  <text id="countRM" x="125" y="70" class="count-label">3 units</text>
 
-  <rect x="300" y="50" width="150" height="100" class="stage"/>
-  <text x="375" y="115" text-anchor="middle" font-size="16">WIP</text>
+  <rect x="300" y="80" width="150" height="100" class="stage"/>
+  <text x="375" y="145" text-anchor="middle" font-size="16">WIP</text>
+  <text id="countWIP" x="375" y="70" class="count-label">0 units</text>
 
-  <rect x="550" y="50" width="150" height="100" class="stage"/>
-  <text x="625" y="115" text-anchor="middle" font-size="16">Finished Goods</text>
+  <rect x="550" y="80" width="150" height="100" class="stage"/>
+  <text x="625" y="145" text-anchor="middle" font-size="16">Finished Goods</text>
+  <text id="countFG" x="625" y="70" class="count-label">0 units</text>
+
+  <text id="countCOGS" x="780" y="145" class="count-label">0 units</text>
+  <text x="780" y="100" font-size="16">COGS</text>
 
   <!-- Arrows -->
-  <line x1="200" y1="100" x2="300" y2="100" class="arrow"/>
-  <line x1="450" y1="100" x2="550" y2="100" class="arrow"/>
-  <line x1="700" y1="100" x2="780" y2="100" class="arrow"/>
+  <line x1="200" y1="130" x2="300" y2="130" class="arrow"/>
+  <line x1="450" y1="130" x2="550" y2="130" class="arrow"/>
+  <line x1="700" y1="130" x2="760" y2="130" class="arrow"/>
 
   <!-- Units -->
-  <circle class="unit" r="10" cx="80" cy="100"/>
-  <circle class="unit" r="10" cx="110" cy="100"/>
-  <circle class="unit" r="10" cx="140" cy="100"/>
+  <circle class="unit" r="10" cx="80" cy="130"/>
+  <circle class="unit" r="10" cx="110" cy="130"/>
+  <circle class="unit" r="10" cx="140" cy="130"/>
 </svg>
 
 <script>
 const units = document.querySelectorAll('.unit');
+let counts = { RM: 3, WIP: 0, FG: 0, COGS: 0 };
+const labels = {
+  RM: document.getElementById('countRM'),
+  WIP: document.getElementById('countWIP'),
+  FG: document.getElementById('countFG'),
+  COGS: document.getElementById('countCOGS')
+};
+
+function updateCounts() {
+  labels.RM.textContent = `${counts.RM} units`;
+  labels.WIP.textContent = `${counts.WIP} units`;
+  labels.FG.textContent = `${counts.FG} units`;
+  labels.COGS.textContent = `${counts.COGS} units`;
+}
 
 function animateUnits() {
   units.forEach((unit, index) => {
     const delay = index * 1000;
-    setTimeout(() => moveUnit(unit, 80, 100, 680, 100, 6000), delay);
+    setTimeout(() => moveThroughStages(unit), delay);
   });
 }
 
-function moveUnit(unit, startX, startY, endX, endY, duration) {
+function moveThroughStages(unit) {
+  moveUnit(unit, 80, 130, 350, 130, 2000, () => {
+    counts.RM--; counts.WIP++; updateCounts();
+    moveUnit(unit, 350, 130, 600, 130, 2000, () => {
+      counts.WIP--; counts.FG++; updateCounts();
+      moveUnit(unit, 600, 130, 780, 130, 2000, () => {
+        counts.FG--; counts.COGS++; updateCounts();
+      });
+    });
+  });
+}
+
+function moveUnit(unit, startX, startY, endX, endY, duration, callback) {
   let startTime = null;
   function animate(time) {
     if (!startTime) startTime = time;
@@ -84,11 +98,14 @@ function moveUnit(unit, startX, startY, endX, endY, duration) {
     unit.setAttribute('cy', y);
     if (progress < 1) {
       requestAnimationFrame(animate);
+    } else if (callback) {
+      callback();
     }
   }
   requestAnimationFrame(animate);
 }
 
+updateCounts();
 animateUnits();
 </script>
 
