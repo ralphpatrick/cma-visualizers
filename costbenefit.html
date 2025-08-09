@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cost–Benefit Analysis</title>
+  <style>
+    /* --------- Apple‑inspired, clean + airy --------- */
+    :root{
+      --bg:#ffffff; --ink:#0b0b0c; --muted:#6e6e73; --line:#e5e5ea;
+      --card:#ffffff; --shadow:0 8px 30px rgba(0,0,0,.06);
+      --radius:18px; --radius-sm:12px; --accent:#0071e3; /* Apple blue */
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{margin:0; background:var(--bg); color:var(--ink); font:16px/1.6 -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+    a{color:var(--accent); text-decoration:none}
+    .wrap{max-width:1100px; margin:0 auto; padding:24px}
+
+    /* Hero */
+    .hero{padding:48px 0 28px; text-align:center}
+    .eyebrow{letter-spacing:.12em; text-transform:uppercase; color:var(--muted); font-weight:600; font-size:12px}
+    h1{margin:.25rem 0 0; font-size:clamp(28px,4vw,44px); line-height:1.15; font-weight:700}
+    .sub{margin:10px auto 0; max-width:680px; color:var(--muted)}
+
+    /* Grid + cards */
+    .grid{display:grid; gap:18px; grid-template-columns:repeat(12,1fr)}
+    .card{grid-column:span 12; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); padding:20px}
+    @media(min-width:880px){
+      .span-7{grid-column:span 7}
+      .span-5{grid-column:span 5}
+    }
+
+    label{display:block; font-weight:600; margin:10px 0 6px}
+    .row{display:flex; gap:12px}
+    input, textarea, select, button{
+      width:100%; padding:12px 14px; border:1px solid var(--line); border-radius:var(--radius-sm);
+      background:#fff; color:var(--ink); font:inherit
+    }
+    textarea{min-height:104px; resize:vertical}
+    button{cursor:pointer; font-weight:600; transition:transform .06s ease, box-shadow .2s ease, background .2s}
+    .btn{background:var(--ink); color:#fff; border-color:transparent}
+    .btn:hover{transform:translateY(-1px)}
+    .btn.secondary{background:#f5f5f7; color:#000; border-color:var(--line)}
+    .btn.ghost{background:transparent}
+
+    .kpi{display:grid; grid-template-columns:1fr auto; gap:6px; align-items:end; padding:10px 0; border-bottom:1px dashed var(--line)}
+    .kpi:last-child{border-bottom:none}
+    .kpi .label{color:var(--muted)}
+    .kpi .value{font-size:clamp(18px,3.2vw,28px); font-weight:700}
+
+    .hint{font-size:12px; color:var(--muted)}
+
+    /* Tooltip (generic) */
+    .tip{display:inline-flex; align-items:center; gap:6px}
+    .tip i{display:inline-grid; place-items:center; width:18px; height:18px; border-radius:50%; background:#e8f0fe; color:#1b66ff; font-style:normal; font-weight:700; font-size:12px}
+    .tip[data-tooltip]{position:relative}
+    .tip[data-tooltip]:hover::after{
+      content:attr(data-tooltip);
+      position:absolute; left:0; top:120%; z-index:10; min-width:220px; max-width:420px;
+      background:#111; color:#fff; padding:10px 12px; border-radius:10px; box-shadow:var(--shadow);
+      font-size:12px; line-height:1.45;
+    }
+
+    /* Tooltips for chips (example buttons) */
+    .chip[data-tooltip]{position:relative}
+    .chip[data-tooltip]:hover::after{
+      content:attr(data-tooltip);
+      position:absolute; left:0; top:120%; z-index:10; min-width:240px; max-width:440px;
+      background:#111; color:#fff; padding:10px 12px; border-radius:10px; box-shadow:var(--shadow);
+      font-size:12px; line-height:1.45;
+    }
+
+    /* Example chips */
+    .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:6px}
+    .chip{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:#f5f5f7; cursor:pointer; font-weight:600; font-size:14px}
+
+    .footer{margin:30px 0 60px; text-align:center; color:var(--muted); font-size:13px}
+    .small{font-size:13px; color:var(--muted)}
+    code{background:#f5f5f7; padding:2px 6px; border-radius:8px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="hero">
+      <div class="eyebrow">Finance tools</div>
+      <h1>Cost–Benefit Analysis</h1>
+      <p class="sub">A simple, privacy‑friendly calculator you can host on GitHub Pages. Paste numbers or upload a CSV, then get <strong>NPV</strong>, <strong>Payback</strong>, and <strong>B/C Ratio</strong> instantly.</p>
+    </header>
+
+    <section class="grid">
+      <div class="card span-7">
+        <h2 style="margin:0 0 8px">Inputs</h2>
+        <p class="small">Everything runs in your browser. No data leaves your device.</p>
+
+        <label class="tip" data-tooltip="Your upfront project cost at time 0. Enter as a positive number; the calculator will treat it as a cost.">
+          Initial Outlay (₱) <i>i</i>
+        </label>
+        <input id="outlay" type="number" inputmode="decimal" value="100000" />
+
+        <div class="row" style="margin-top:10px">
+          <div style="flex:1">
+            <label class="tip" data-tooltip="Annual discount rate (your required return or cost of capital). If your cash flows are monthly, use a monthly rate.">
+              Discount Rate (%) <i>i</i>
+            </label>
+            <input id="rate" type="number" inputmode="decimal" value="12" />
+          </div>
+          <div style="flex:1">
+            <label class="tip" data-tooltip="Choose the time unit that matches your list below (years by default). This is only a note—calculations use the sequence you provide.">
+              Period <i>i</i>
+            </label>
+            <select id="period" aria-label="Period granularity">
+              <option value="year" selected>Year</option>
+              <option value="quarter">Quarter</option>
+              <option value="month">Month</option>
+            </select>
+          </div>
+        </div>
+
+        <label class="tip" style="margin-top:10px" data-tooltip="List your expected benefits (cash inflows) for each future period, separated by commas or spaces. Example: 30000, 35000, 40000.">
+          Cash Flows by Period <i>i</i>
+        </label>
+        <textarea id="flows" placeholder="e.g., 30000, 35000, 40000, 45000">30000, 35000, 40000, 45000</textarea>
+        <div class="row" style="margin-top:10px; align-items:center">
+          <button class="btn" id="btnCompute" title="Compute results">Compute</button>
+          <label class="btn secondary" style="display:inline-flex; align-items:center; justify-content:center; gap:8px; white-space:nowrap; cursor:pointer">
+            <input id="csv" type="file" accept=".csv" style="display:none" />
+            Upload CSV
+          </label>
+          <button class="btn ghost" id="btnClear" title="Clear inputs">Clear</button>
+        </div>
+        <p class="hint">CSV format: single row like <code>30000,35000,40000</code>. Headers are ignored.</p>
+
+        <div style="margin-top:10px">
+          <div class="tip" data-tooltip="Hover each example to see what question it answers and how to read the results. Click to auto‑fill the inputs.">
+            <strong>Try an example</strong> <i>i</i>
+          </div>
+          <div class="chips">
+            <span class="chip" data-demo="coffee" data-tooltip="Goal: Test if a ₱100,000 coffee cart is worth it at a 10% required return. Loads: Outlay ₱100k; Rate 10%; Inflows 40k, 50k, 60k, 65k. Interpret: +NPV = value created; Payback ≈ 2 yrs = fast recovery; B/C > 1 = PV benefits outweigh cost.">☕ Coffee Cart</span>
+            <span class="chip" data-demo="machine" data-tooltip="Goal: Decide on a ₱250,000 machine at 12% cost of capital. Loads: Outlay ₱250k; Rate 12%; Inflows 90k, 100k, 110k, 110k, 120k. Interpret: Strong +NPV = adds value; Payback ≈ 3 yrs; B/C > 1 = savings beat cost in PV terms.">🛠️ Equipment Savings</span>
+            <span class="chip" data-demo="cma" data-tooltip="Goal: CMA‑style practice at 15% with uneven inflows. Loads: Outlay ₱500k; Rate 15%; Inflows 200k, 250k, 200k, 150k. Interpret: If NPV ≤ 0, it misses hurdle; Payback may be long; B/C < 1 = costs exceed benefits after discounting.">📘 CMA Practice</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card span-5">
+        <h2 style="margin:0 0 8px">Results</h2>
+        <div class="kpi">
+          <div class="label tip" data-tooltip="Net Present Value: PV(benefits) minus your initial outlay.">NPV (₱) <i>i</i></div>
+          <div class="value" id="npv">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label tip" data-tooltip="Simple payback ignores discounting. It's the first period where cumulative inflows exceed the initial outlay.">Payback (periods) <i>i</i></div>
+          <div class="value" id="payback">—</div>
+        </div>
+        <div class="kpi">
+          <div class="label tip" data-tooltip="Benefit–Cost Ratio: PV of benefits divided by PV of costs (here, costs are the initial outlay).">B/C Ratio <i>i</i></div>
+          <div class="value" id="bcr">—</div>
+        </div>
+        <p class="hint" style="margin-top:8px">Tip: Positive NPV and B/C &gt; 1 generally indicate a worthwhile project.</p>
+      </div>
+    </section>
+
+    <section class="grid" style="margin-top:6px">
+      <div class="card span-12">
+        <h2 style="margin:0 0 10px">How to use</h2>
+        <ol>
+          <li><strong>Enter Initial Outlay</strong> (your upfront cost) and <strong>Discount Rate</strong> that matches your period unit.</li>
+          <li>List your expected <strong>cash inflows per period</strong> in the box, or upload a <strong>CSV</strong>.</li>
+          <li>Click <strong>Compute</strong>. Review NPV, Payback, and B/C Ratio. Adjust inputs to test scenarios.</li>
+        </ol>
+        <details>
+          <summary>What about ongoing costs?</summary>
+          This simple version assumes one upfront cost (Initial Outlay). If you have costs later, subtract them from that period's inflow (net inflow = benefits − costs). If you need a separate costs column, we can extend this file.
+        </details>
+      </div>
+    </section>
+
+    <footer class="footer">
+      Built for GitHub Pages · Works offline · No tracking
+    </footer>
+  </div>
+
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const peso = (x) => Number.isFinite(x) ? x.toLocaleString(undefined,{style:'currency',currency:'PHP',maximumFractionDigits:2}) : '—';
+
+    function parseFlows(str){
+      // Accept commas or spaces; ignore non-numeric tokens (headers)
+      return (str||'')
+        .split(/[\n,\s,;]+/)
+        .map(s => Number(String(s).replace(/[^-\d.]/g,'')))
+        .filter(n => !Number.isNaN(n));
+    }
+
+    function compute(){
+      const outlay = Number($('#outlay').value || 0);
+      const r = Number($('#rate').value || 0) / 100;
+      const flows = parseFlows($('#flows').value);
+
+      // PV of inflows
+      let pvBenefits = 0;
+      for(let t=0; t<flows.length; t++){
+        pvBenefits += flows[t] / Math.pow(1 + r, t + 1);
+      }
+      const npv = pvBenefits - outlay;
+
+      // Simple payback (undiscounted)
+      let cum = 0, payback = 'Not recovered';
+      for(let i=0;i<flows.length;i++){
+        cum += flows[i];
+        if(cum >= outlay){ payback = (i+1).toString(); break; }
+      }
+
+      const bcr = outlay > 0 ? (pvBenefits / outlay) : NaN;
+
+      $('#npv').textContent = peso(npv);
+      $('#payback').textContent = payback;
+      $('#bcr').textContent = Number.isFinite(bcr) ? bcr.toFixed(2) : '—';
+    }
+
+    // CSV upload
+    $('#csv').addEventListener('change', async (e)=>{
+      const file = e.target.files?.[0]; if(!file) return;
+      const txt = await file.text();
+      // Use the first non-empty line; ignore lines starting with letters (headers)
+      const line = txt.split(/\r?\n/).find(l => /[\d-]/.test(l)) || '';
+      const vals = parseFlows(line);
+      if(vals.length){ $('#flows').value = vals.join(', '); }
+    });
+
+    $('#btnCompute').addEventListener('click', compute);
+    $('#btnClear').addEventListener('click', ()=>{
+      $('#outlay').value = '';
+      $('#rate').value = '';
+      $('#flows').value = '';
+      $('#npv').textContent = '—';
+      $('#payback').textContent = '—';
+      $('#bcr').textContent = '—';
+    });
+
+    // Demo scenarios
+    const demos = {
+      coffee: { outlay: 100000, rate: 10, flows: [40000,50000,60000,65000] },
+      machine: { outlay: 250000, rate: 12, flows: [90000,100000,110000,110000,120000] },
+      cma: { outlay: 500000, rate: 15, flows: [200000,250000,200000,150000] }
+    };
+
+    document.querySelectorAll('.chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.getAttribute('data-demo');
+        const d = demos[key]; if(!d) return;
+        $('#outlay').value = d.outlay;
+        $('#rate').value = d.rate;
+        $('#flows').value = d.flows.join(', ');
+        compute();
+      });
+    });
+
+    // Auto-compute on load with defaults
+    compute();
+  </script>
+</body>
+</html>
