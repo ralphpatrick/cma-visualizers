@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CMA P1 · Section E · Find the Weak Spot</title>
+<meta name="description" content="CMA Part 1 · Section E · Fraud Scenarios — Find the Weak Spot game" />
+<style>
+  :root{
+    --bg: #f5f5f7;
+    --card: #ffffff;
+    --ink: #0a0a0a;
+    --ink-2:#3a3a3c;
+    --muted:#8e8e93;
+    --accent:#0071e3; /* Apple-ish blue */
+    --accent-2:#0a84ff;
+    --good:#34c759;
+    --bad:#ff3b30;
+    --warn:#ff9f0a;
+    --shadow: 0 10px 30px rgba(0,0,0,.08);
+    --radius: 16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0c0c0d;
+      --card:#161617;
+      --ink:#f5f5f7;
+      --ink-2:#d1d1d6;
+      --muted:#8e8e93;
+      --accent:#0a84ff;
+      --accent-2:#409cff;
+      --shadow: 0 10px 30px rgba(0,0,0,.45);
+    }
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  .nav{
+    position:sticky;top:0;z-index:10;
+    backdrop-filter:saturate(180%) blur(20px);
+    background:color-mix(in oklab, var(--bg) 80%, transparent);
+    border-bottom:1px solid color-mix(in oklab, var(--ink) 12%, transparent);
+  }
+  .nav-inner{max-width:1100px;margin:0 auto;display:flex;align-items:center;gap:.75rem;padding:12px 20px}
+  .logo{font-weight:700;letter-spacing:.2px}
+  .chip{display:inline-flex;align-items:center;gap:.45rem;padding:.35rem .7rem;border-radius:999px;background:color-mix(in oklab, var(--ink) 8%, transparent);color:var(--ink-2);font-size:.85rem}
+  .hero{max-width:1100px;margin:24px auto 0;padding:24px 20px 0}
+  .hero h1{font-size:clamp(28px,5vw,44px);line-height:1.1;margin:.2rem 0}
+  .sub{color:var(--ink-2);max-width:70ch}
+  .shell{max-width:1100px;margin:20px auto;padding:20px}
+  .layout{display:grid;grid-template-columns:1.1fr .9fr;gap:20px}
+  @media (max-width:980px){.layout{grid-template-columns:1fr;}}
+  .card{background:var(--card);border-radius:var(--radius);box-shadow:var(--shadow);padding:18px}
+  .story{padding:20px;border-radius:12px;background:color-mix(in oklab, var(--ink) 6%, transparent);color:var(--ink);font-size:1.05rem}
+  .story h3{margin:.2rem 0 .6rem 0;font-size:1.2rem}
+  .choices{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .choice{
+    border:1px solid color-mix(in oklab, var(--ink) 12%, transparent);
+    padding:.6rem .8rem;border-radius:12px;background:var(--card);cursor:pointer;
+    transition:transform .06s ease, border-color .2s ease, background .2s ease;
+    user-select:none
+  }
+  .choice:hover{transform:translateY(-1px)}
+  .choice.selected{border-color:var(--accent)}
+  .choice.correct{border-color:var(--good)}
+  .choice.wrong{border-color:var(--bad)}
+  .controls{display:flex;flex-wrap:wrap;gap:10px;margin-top:16px}
+  .btn{
+    appearance:none;border:none;background:var(--ink);color:var(--bg);padding:.7rem 1rem;border-radius:12px;cursor:pointer;
+    font-weight:600;transition:transform .06s ease, opacity .2s ease;box-shadow:var(--shadow)
+  }
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .btn.ghost{background:transparent;color:var(--ink);border:1px solid color-mix(in oklab, var(--ink) 16%, transparent)}
+  .btn.accent{background:var(--accent)}
+  .btn.good{background:var(--good)}
+  .btn.warn{background:var(--warn);color:#000}
+  .btn.bad{background:var(--bad)}
+  .meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:10px;color:var(--muted);font-size:.9rem}
+  .meter{height:10px;background:color-mix(in oklab, var(--ink) 8%, transparent);border-radius:999px;overflow:hidden}
+  .meter>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
+  .panel{display:grid;gap:10px}
+  .explain{
+    padding:12px;border-radius:12px;background:color-mix(in oklab, var(--ink) 6%, transparent);
+    border:1px solid color-mix(in oklab, var(--ink) 10%, transparent)
+  }
+  .explain h4{margin:.1rem 0 .2rem 0;font-size:1rem}
+  details summary{cursor:pointer;color:var(--ink);font-weight:600}
+  .kbd{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.9rem;padding:.1rem .35rem;border-radius:6px;border:1px solid color-mix(in oklab, var(--ink) 18%, transparent)}
+  .footer{max-width:1100px;margin:30px auto;padding:0 20px 40px;color:var(--muted);font-size:.9rem}
+  .pill{padding:.3rem .6rem;border-radius:999px;background:color-mix(in oklab, var(--ink) 8%, transparent)}
+  .toast{
+    position:fixed;inset:auto 20px 20px auto;padding:12px 14px;border-radius:12px;background:var(--ink);color:var(--bg);
+    font-weight:600;box-shadow:var(--shadow);opacity:0;transform:translateY(8px);pointer-events:none;transition:all .25s ease;z-index:20;
+  }
+  .toast.show{opacity:1;transform:translateY(0)}
+</style>
+</head>
+<body>
+  <div class="nav">
+    <div class="nav-inner">
+      <div class="logo">CMA·P1</div>
+      <span class="chip" title="Section E: Internal Controls & ERM">Section E</span>
+      <span class="chip">Fraud Scenarios</span>
+      <span class="chip">Find the Weak Spot</span>
+      <span class="chip" id="progressChip">Score: 0</span>
+      <span class="chip" id="streakChip">Streak: 0🔥</span>
+    </div>
+  </div>
+
+  <section class="hero">
+    <h1>Find the Weak Spot</h1>
+    <p class="sub">Read the short story. Tap the <strong>control gaps</strong> (red flags). Submit to check, learn why they’re weak, and see the proper control fix. Designed for CMA Part 1 — Section E.</p>
+  </section>
+
+  <main class="shell layout">
+    <section class="card">
+      <div class="meta">
+        <span class="pill" id="scenarioTag">—</span>
+        <span class="pill" id="difficultyPill">—</span>
+        <span class="pill" id="qCounter">Story 1 of N</span>
+      </div>
+      <div class="story" id="storyBox" role="group" aria-label="Fraud scenario">
+        <h3 id="storyTitle">Loading…</h3>
+        <p id="storyText">Please wait.</p>
+      </div>
+
+      <div class="choices" id="choices"></div>
+
+      <div class="controls">
+        <button class="btn ghost" id="btnHint" aria-label="Show hint (reduces max points)">💡 Hint</button>
+        <button class="btn accent" id="btnSubmit" aria-label="Submit selections"><span class="kbd">Enter</span> Submit</button>
+        <button class="btn good" id="btnNext" aria-label="Next scenario" disabled>Next ▶</button>
+        <button class="btn warn" id="btnReveal" aria-label="Reveal answers (no points)">Reveal</button>
+        <button class="btn ghost" id="btnReset" aria-label="Reset this scenario">Reset</button>
+      </div>
+
+      <div class="panel" style="margin-top:16px">
+        <div class="meter" aria-label="Progress"><i id="meterFill"></i></div>
+        <div class="meta">
+          <span>Max points this round: <strong id="maxPts">—</strong></span>
+          <span>Time: <strong id="timer">00:00</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <aside class="card">
+      <h3 style="margin:.2rem 0 8px 0;">Why it works</h3>
+      <p class="sub">Turns theory into real‑world application. You’ll pattern‑match fraud risks, then connect them to the missing control.</p>
+      <details open>
+        <summary>How to play</summary>
+        <ul>
+          <li>Select all red flags you see in the story.</li>
+          <li><em>Submit</em> to get scored: +1 correct, −0.5 for each wrong pick (min 0).</li>
+          <li>Perfect clears build a 🔥 streak and bonus points.</li>
+          <li>Use <em>Hint</em> if stuck (small point penalty).</li>
+          <li><em>Reveal</em> is for learning only (no points).</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Scoring details</summary>
+        <ul>
+          <li>Base points = number of correct flags.</li>
+          <li>Wrong picks: −0.5 each (floored at 0).</li>
+          <li>Perfect = +1 bonus & streak +1.</li>
+          <li>Using Hint reduces max points by 1 (to a minimum of 1).</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Section E anchors</summary>
+        <ul>
+          <li>Control environment, risk assessment, control activities</li>
+          <li>Duties segregation, authorization, custody vs recording</li>
+          <li>Monitoring, IT controls, management override</li>
+          <li>Fraud triangle: pressure, opportunity, rationalization</li>
+        </ul>
+      </details>
+
+      <div id="explainBox" style="margin-top:12px;display:none">
+        <h3 style="margin:.2rem 0 8px 0;">Learn</h3>
+        <div id="explainList"></div>
+      </div>
+
+      <hr style="border:none;border-top:1px solid color-mix(in oklab, var(--ink) 12%, transparent);margin:16px 0" />
+
+      <div class="meta">
+        <button class="btn ghost" id="btnToggleLearn">🧠 Always show explanations (off)</button>
+        <button class="btn ghost" id="btnRestart">Start over</button>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <p>Tip: Add more stories in the <span class="kbd">scenarios[]</span> array below. Keep each choice atomic and label the correct ones. Great for team training and mock exams.</p>
+  </footer>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+/* =========================
+   DATA — Edit/extend freely
+   ========================= */
+const scenarios = [
+  {
+    id: 1,
+    tag: "Cash Receipts · Segregation of Duties",
+    difficulty: "Beginner",
+    title: "Daily Cafe Takings",
+    story: "A small café has the cashier print the Z-read at day end, count cash, record sales into the sheet, and bring the envelope to the owner once a week. The cashier also issues manual receipts if the POS glitches. No one else reviews variances.",
+    hint: "Think custody vs. recording vs. authorization.",
+    choices: [
+      { text: "Same person counts cash and records sales", correct: true,
+        why: "Combines custody (cash) and recordkeeping (sales), enabling skimming or concealment.",
+        control: "Separate duties: one counts/deposits, another records, a third reconciles daily." },
+      { text: "Z-read is printed daily", correct: false,
+        why: "Daily Z-reads are good; the issue is who reviews them.",
+        control: "Keep daily Z-reads but add independent review vs. bank and POS data." },
+      { text: "Weekly envelope handover", correct: true,
+        why: "Cash is held too long, raising loss and manipulation risk.",
+        control: "Daily deposit to bank; use night drop or pickup if needed." },
+      { text: "Manual receipts during POS glitches", correct: true,
+        why: "Uncontrolled manual receipts enable unrecorded sales.",
+        control: "Pre-numbered manual receipts, log issued/voided, and reconcile to POS totals." },
+      { text: "No variance review", correct: true,
+        why: "Missing monitoring allows issues to persist.",
+        control: "Independent daily reconciliation: POS Z-read ↔ cash ↔ bank deposit." }
+    ]
+  },
+  {
+    id: 2,
+    tag: "AP & Vendor Master · Authorization",
+    difficulty: "Intermediate",
+    title: "New Vendor Rush",
+    story: "The purchasing assistant can add vendors and place orders up to ₱50,000. To meet a rush timeline, they created 'Prime Office Supplies' and approved its first invoice themselves. The address matches a residential condo.",
+    hint: "Vendor master + approvals + related-party indicators.",
+    choices: [
+      { text: "Purchasing can add vendors without review", correct: true,
+        why: "Unaudited vendor setup invites shell vendors and kickbacks.",
+        control: "Require independent vendor onboarding (docs, TIN, bank name match) and approval." },
+      { text: "Self-approval of first invoice", correct: true,
+        why: "Violates authorization limits and enables fictitious billing.",
+        control: "Enforce approval matrix; creator ≠ approver; route first invoices to Finance Head." },
+      { text: "Residential address for supplier", correct: true,
+        why: "Red flag for shell vendor or related party.",
+        control: "Run vendor due diligence: site check, official receipts/registration verification." },
+      { text: "Order cap at ₱50,000", correct: false,
+        why: "A cap can be good; the risk is circumvention without oversight.",
+        control: "Keep caps but add cumulative/related-PO monitoring to detect split purchases." },
+      { text: "Rush timeline pressure", correct: true,
+        why: "Pressure + weak controls = opportunity for fraud (fraud triangle).",
+        control: "Allow emergency path but with post‑facto independent review within 24–48 hours." }
+    ]
+  },
+  {
+    id: 3,
+    tag: "Payroll · Ghost Employees",
+    difficulty: "Intermediate",
+    title: "New Site Launch",
+    story: "Operations emailed HR a spreadsheet of 25 'temporary hires' for a new site starting Monday. HR uploaded them to payroll. IDs will be 'sorted later'. No physical sign-in, only a shared tablet PIN.",
+    hint: "Identity verification & existence testing.",
+    choices: [
+      { text: "Onboarding without ID / background checks", correct: true,
+        why: "Enables ghost employees; HR cannot prove existence.",
+        control: "Require IDs, signed contracts, and supervisor verification before first pay." },
+      { text: "Shared tablet PIN for timekeeping", correct: true,
+        why: "Any person can clock in for others.",
+        control: "Unique credentials or biometric/geo-validated timekeeping; supervisor attestation." },
+      { text: "Ops submits list; HR uploads", correct: false,
+        why: "Workflow is fine if controls exist.",
+        control: "Keep workflow, but add independent audit of hires vs. headcount plan." },
+      { text: "No physical sign-in", correct: true,
+        why: "Lack of independent attendance evidence.",
+        control: "Require physical/biometric logs or photo check-ins with timestamp and location." }
+    ]
+  },
+  {
+    id: 4,
+    tag: "Inventory · Cycle Counts & Overrides",
+    difficulty: "Advanced",
+    title: "Perfect Numbers",
+    story: "Monthly inventory always matches the system exactly. The warehouse supervisor also has system admin rights 'to fix mistakes quickly'. Variances are posted without approval to meet reporting deadlines.",
+    hint: "Too perfect? Check access & overrides.",
+    choices: [
+      { text: "Supervisor has admin + custody", correct: true,
+        why: "Combines custody with powerful system access; can conceal theft via adjustments.",
+        control: "Remove admin from custody roles; admin in IT; all overrides logged and reviewed." },
+      { text: "No approval for variances", correct: true,
+        why: "Allows unauthorized write-offs/write-ups.",
+        control: "Require dollar/percentage thresholds and approver outside warehouse." },
+      { text: "Always perfect counts", correct: true,
+        why: "Statistically unlikely; may indicate manipulation.",
+        control: "Surprise cycle counts by independent team; reconcile and investigate anomalies." },
+      { text: "Monthly counting cadence", correct: false,
+        why: "Monthly is acceptable; the issue is independence & review.",
+        control: "Keep cadence; add risk-based frequency and segregation." }
+    ]
+  },
+  {
+    id: 5,
+    tag: "IT & Access · Management Override",
+    difficulty: "Advanced",
+    title: "End of Quarter Push",
+    story: "To hit targets, the Sales VP asked IT to extend system access for two resigned reps to 'close pending deals'. The CFO verbally okayed it. No ticket was created; the accounts were reactivated for three days.",
+    hint: "Termination, access, documentation.",
+    choices: [
+      { text: "Reactivating resigned users", correct: true,
+        why: "Violates termination controls; enables unauthorized actions.",
+        control: "Immediate deprovisioning; reactivation only via formal approvals with monitoring." },
+      { text: "No ticket / documentation", correct: true,
+        why: "No audit trail for a high-risk exception.",
+        control: "All access changes via ticketing with approvals and expiration." },
+      { text: "Verbal approval from CFO", correct: true,
+        why: "High-risk override without written sign-off.",
+        control: "Require written approval and compensating monitoring by Internal Audit/IT Security." },
+      { text: "Access extended for 3 days only", correct: true,
+        why: "Even short reactivations create opportunity windows.",
+        control: "Use least privilege temp accounts with scoped permissions and real-time alerts." }
+    ]
+  },
+  {
+    id: 6,
+    tag: "Treasury & Banking · Reconciliations",
+    difficulty: "Beginner",
+    title: "Month-End Crunch",
+    story: "The accountant prepares bank reconciliations and also has online banking rights to release payments. Recons are reviewed 'when there’s time'. An old outstanding reconciling item repeats every month.",
+    hint: "Classic SoD and monitoring.",
+    choices: [
+      { text: "Same person pays and reconciles", correct: true,
+        why: "Can hide unauthorized payments in the reconciliation.",
+        control: "Different person releases payments vs. prepares recons; independent review." },
+      { text: "Late / skipped review", correct: true,
+        why: "Delays detection of errors or fraud.",
+        control: "Enforce month-end D+3 review by Controller with sign-off." },
+      { text: "Recurring reconciling item", correct: true,
+        why: "Stale items are classic red flags.",
+        control: "Investigate and clear; aging thresholds trigger escalation." },
+      { text: "Online banking rights exist", correct: false,
+        why: "Access itself is normal; the conflict is with recon responsibility.",
+        control: "Maintain rights but segregate duties and enable dual authorization." }
+    ]
+  },
+  {
+    id: 7,
+    tag: "Travel & Expense · Policy Violations",
+    difficulty: "Beginner",
+    title: "Conference Perks",
+    story: "A project manager attended a conference abroad. They submitted expense claims for business-class airfare and hotel spa services, both above the company’s travel policy limits. The approving manager signed off without review, saying 'It’s within the budget anyway'.",
+    hint: "Look for approval discipline and policy enforcement gaps.",
+    choices: [
+      { text: "Business-class airfare without policy exception", correct: true,
+        why: "Violates travel policy and creates inequity risk.",
+        control: "Require documented approval for policy exceptions with justification and cost-benefit analysis." },
+      { text: "Hotel spa services claimed as business expense", correct: true,
+        why: "Non-business personal expense falsely claimed.",
+        control: "Enforce policy: personal charges excluded, flagged in audit review." },
+      { text: "Approving manager signs without review", correct: true,
+        why: "Enables expense fraud through weak authorization.",
+        control: "Train approvers, require detailed verification before sign-off." },
+      { text: "Within budget justification", correct: true,
+        why: "Budget compliance ≠ policy compliance; encourages misuse.",
+        control: "Tie approvals to both budget and policy compliance checks." }
+    ]
+  },
+  {
+    id: 8,
+    tag: "Fixed Assets · Misappropriation",
+    difficulty: "Intermediate",
+    title: "Vanishing Laptops",
+    story: "IT purchased 20 laptops for new hires. No asset tags were attached, and they were stored in an unlocked supply room. The receiving clerk also updates the asset register. Three laptops are missing after two months.",
+    hint: "Custody, tracking, and recordkeeping separation.",
+    choices: [
+      { text: "No asset tags", correct: true,
+        why: "Makes physical tracking and identification harder.",
+        control: "Tag all assets immediately upon receipt before storage or deployment." },
+      { text: "Unlocked storage room", correct: true,
+        why: "Physical security breach enabling theft.",
+        control: "Secure asset storage with restricted access and logs." },
+      { text: "Receiving clerk updates asset register", correct: true,
+        why: "Combines custody and recordkeeping.",
+        control: "Separate duties: receiving vs. recording vs. deployment." },
+      { text: "No periodic asset counts", correct: true,
+        why: "Delays detection of loss.",
+        control: "Conduct quarterly spot checks and annual full inventory." }
+    ]
+  },
+  {
+    id: 9,
+    tag: "Revenue Recognition · Fictitious Sales",
+    difficulty: "Advanced",
+    title: "Quarter-End Push",
+    story: "To meet sales targets, the sales team booked shipments to distributors without customer orders. Goods were sent on consignment but recorded as revenue. The CFO approved the entries to 'smooth the numbers'.",
+    hint: "Revenue recognition principles & management override.",
+    choices: [
+      { text: "Recording consignment shipments as revenue", correct: true,
+        why: "Violates revenue recognition — control remains with seller.",
+        control: "Recognize revenue only upon transfer of control per contract terms." },
+      { text: "CFO approving policy violation", correct: true,
+        why: "Management override of GAAP compliance.",
+        control: "Internal audit review of high-risk journal entries; enforce accounting policy." },
+      { text: "Pressure to meet targets", correct: true,
+        why: "Fraud triangle: pressure + opportunity + rationalization.",
+        control: "Link incentives to sustainable KPIs, not just period-end numbers." }
+    ]
+  },
+  {
+    id: 10,
+    tag: "Purchasing · Conflict of Interest",
+    difficulty: "Intermediate",
+    title: "Family Ties",
+    story: "The procurement officer awards repeated contracts to a catering firm owned by their sibling. Prices are consistently above market. No competitive bids were obtained.",
+    hint: "Procurement ethics and competitive bidding.",
+    choices: [
+      { text: "Awarding to related party without disclosure", correct: true,
+        why: "Creates conflict of interest and risk of favoritism.",
+        control: "Mandate disclosure of related parties; independent review of such awards." },
+      { text: "Above market pricing", correct: true,
+        why: "Indicates possible overbilling or kickbacks.",
+        control: "Benchmark pricing regularly and enforce competitive bidding." },
+      { text: "No competitive bids obtained", correct: true,
+        why: "Removes pricing and quality comparison safeguard.",
+        control: "Require at least 3 bids or documented sole-source justification." }
+    ]
+  },
+  {
+    id: 11,
+    tag: "Petty Cash · Abuse",
+    difficulty: "Beginner",
+    title: "Always at Float",
+    story: "The petty cash custodian replenishes the fund weekly using only a handwritten note for 'miscellaneous expenses'. No receipts are kept. The balance is always at the float amount after replenishment.",
+    hint: "Documentation and review gaps.",
+    choices: [
+      { text: "No receipts for petty cash use", correct: true,
+        why: "No audit trail for expenses — enables misuse.",
+        control: "Require original receipts or signed vouchers for every disbursement." },
+      { text: "Replenishment without review", correct: true,
+        why: "Allows continued abuse without detection.",
+        control: "Independent review of petty cash replenishment and supporting docs." },
+      { text: "Generic 'miscellaneous' description", correct: true,
+        why: "Lack of detail obscures spending nature.",
+        control: "Require specific expense descriptions in petty cash logs." }
+    ]
+  },
+  {
+    id: 12,
+    tag: "Inventory · Obsolete Stock Manipulation",
+    difficulty: "Intermediate",
+    title: "Clearing the Shelves",
+    story: "The warehouse manager instructed staff to dispose of expired goods without documentation. Inventory records were adjusted directly in the system. No write-off approval was sought.",
+    hint: "Documentation and approval for write-offs.",
+    choices: [
+      { text: "Disposal without documentation", correct: true,
+        why: "Enables theft under cover of disposal.",
+        control: "Document disposals with forms, witness signatures, and photos if high value." },
+      { text: "System adjustment without approval", correct: true,
+        why: "Bypasses authorization controls.",
+        control: "Require manager or finance approval for all write-offs." },
+      { text: "No review of obsolescence process", correct: true,
+        why: "Increases risk of concealment.",
+        control: "Periodic review of obsolete stock reports by independent team." }
+    ]
+  },
+  {
+    id: 13,
+    tag: "Accounts Receivable · Lapping",
+    difficulty: "Advanced",
+    title: "Covering the Shortfall",
+    story: "The AR clerk receives customer payments, records them, and prepares the bank deposit. They delayed depositing cash from one customer and used another customer’s payment to cover it. No one reviews postings against bank credits.",
+    hint: "Custody vs. recording in AR.",
+    choices: [
+      { text: "Same person receives and records payments", correct: true,
+        why: "Enables lapping schemes by controlling both cash and records.",
+        control: "Separate duties: receiving, recording, and reconciling AR." },
+      { text: "No review of postings vs. bank credits", correct: true,
+        why: "Delays detection of misapplied funds.",
+        control: "Daily reconciliation by independent person." },
+      { text: "Delayed deposits", correct: true,
+        why: "Provides window for misuse.",
+        control: "Deposit receipts daily; monitor deposit dates vs. receipt dates." }
+    ]
+  },
+  {
+    id: 14,
+    tag: "IT · Privileged Access Misuse",
+    difficulty: "Advanced",
+    title: "Developer Shortcuts",
+    story: "A software developer has full admin rights in production to 'quickly fix bugs'. Changes are made without change tickets or peer review. Some bugs reappear after being 'fixed'.",
+    hint: "Segregation between development and production.",
+    choices: [
+      { text: "Developer has admin rights in production", correct: true,
+        why: "Bypasses change management controls.",
+        control: "Restrict production access; route fixes via approved deployment pipeline." },
+      { text: "No change tickets", correct: true,
+        why: "Removes audit trail and approval.",
+        control: "All changes require logged ticket and approval." },
+      { text: "No peer review", correct: true,
+        why: "Increases risk of malicious or poor-quality changes.",
+        control: "Mandatory code review and testing before deployment." }
+    ]
+  },
+  {
+    id: 15,
+    tag: "Loan Processing · Fake Applications",
+    difficulty: "Intermediate",
+    title: "Helping a Friend",
+    story: "A loan officer processed an application for a friend using falsified payslips. No independent verification of employment was done. The loan was approved and disbursed before credit review.",
+    hint: "Loan documentation and verification.",
+    choices: [
+      { text: "Processing application for a friend", correct: true,
+        why: "Conflict of interest — personal relationship risk.",
+        control: "Reassign related applications to another officer." },
+      { text: "Falsified payslips accepted", correct: true,
+        why: "Acceptance without verification enables fraud.",
+        control: "Independently verify employment and income sources." },
+      { text: "No credit review before disbursement", correct: true,
+        why: "Bypasses core lending control.",
+        control: "Require credit review and approval before releasing funds." }
+    ]
+  }
+];
+
+/* =========================
+   State & Helpers
+   ========================= */
+let idx = 0;
+let score = 0;
+let streak = 0;
+let startedAt = Date.now();
+let alwaysExplain = false;
+let usedHint = false;
+
+const $ = sel => document.querySelector(sel);
+const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+const fmtTime = (ms)=>{
+  const s = Math.floor(ms/1000);
+  const m = Math.floor(s/60);
+  const rem = s % 60;
+  return `${String(m).padStart(2,'0')}:${String(rem).padStart(2,'0')}`;
+}
+
+function toast(msg, ms=1800){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), ms);
+}
+
+function saveProgress(){
+  localStorage.setItem('cmaE_state', JSON.stringify({idx, score, streak}));
+}
+function loadProgress(){
+  const raw = localStorage.getItem('cmaE_state');
+  if(!raw) return;
+  try{
+    const s = JSON.parse(raw);
+    idx = Math.min(s.idx ?? 0, scenarios.length-1);
+    score = s.score ?? 0;
+    streak = s.streak ?? 0;
+  }catch(e){}
+}
+
+/* =========================
+   Rendering
+   ========================= */
+function renderScenario(){
+  const s = scenarios[idx];
+  $('#scenarioTag').textContent = s.tag;
+  $('#difficultyPill').textContent = `Difficulty: ${s.difficulty}`;
+  $('#qCounter').textContent = `Story ${idx+1} of ${scenarios.length}`;
+  $('#storyTitle').textContent = s.title;
+  $('#storyText').textContent = s.story;
+  $('#maxPts').textContent = Math.max(1, s.choices.filter(c=>c.correct).length - (usedHint?1:0));
+  $('#storyBox').focus();
+  const choicesEl = $('#choices');
+  choicesEl.innerHTML = '';
+  s.choices.forEach((c,i)=>{
+    const btn = document.createElement('button');
+    btn.className = 'choice';
+    btn.type = 'button';
+    btn.setAttribute('data-i', i);
+    btn.setAttribute('aria-pressed','false');
+    btn.textContent = c.text;
+    btn.addEventListener('click', ()=>{
+      btn.classList.toggle('selected');
+      const pressed = btn.getAttribute('aria-pressed')==='true';
+      btn.setAttribute('aria-pressed', String(!pressed));
+    });
+    choicesEl.appendChild(btn);
+  });
+  $('#btnSubmit').disabled = false;
+  $('#btnNext').disabled = true;
+  $('#btnReveal').disabled = false;
+  $('#btnHint').disabled = false;
+  $('#explainBox').style.display = 'none';
+  $('#explainList').innerHTML = '';
+  usedHint = false;
+  startedAt = Date.now();
+  updateHeader();
+}
+
+function updateHeader(){
+  $('#progressChip').textContent = `Score: ${score}`;
+  $('#streakChip').textContent   = `Streak: ${streak}🔥`;
+  const progress = (idx / scenarios.length) * 100;
+  $('#meterFill').style.width = `${progress}%`;
+}
+
+function buildExplanations(s, selectedIdxs=null){
+  const box = $('#explainList');
+  box.innerHTML = '';
+  s.choices.forEach((c,i)=>{
+    const picked = selectedIdxs ? selectedIdxs.has(i) : false;
+    if(c.correct || picked){
+      const div = document.createElement('div');
+      div.className = 'explain';
+      div.innerHTML = `
+        <h4>${c.correct ? "✅ Red Flag" : "❌ Not a red flag"}</h4>
+        <div><strong>Item:</strong> ${c.text}</div>
+        <div style="margin-top:6px"><strong>Why:</strong> ${c.why}</div>
+        <div style="margin-top:6px"><strong>Control Fix:</strong> ${c.control}</div>
+      `;
+      box.appendChild(div);
+    }
+  });
+  $('#explainBox').style.display = 'block';
+}
+
+/* =========================
+   Game Logic
+   ========================= */
+function submitAnswers(){
+  const s = scenarios[idx];
+  const correctSet = new Set(s.choices.map((c,i)=> c.correct ? i : null).filter(v=>v!==null));
+  const selectedIdxs = new Set($$('#choices .choice').map((el,i)=> el.classList.contains('selected') ? i : null).filter(v=>v!==null));
+
+  // Mark UI
+  $$('#choices .choice').forEach((el,i)=>{
+    el.classList.remove('correct','wrong');
+    if(selectedIdxs.has(i) && correctSet.has(i)) el.classList.add('correct');
+    if(selectedIdxs.has(i) && !correctSet.has(i)) el.classList.add('wrong');
+    if(!selectedIdxs.has(i) && correctSet.has(i)) el.classList.add('correct'); // show missed as correct borders
+  });
+
+  // Scoring
+  const totalCorrect = correctSet.size;
+  const pickedCorrect = [...selectedIdxs].filter(i=>correctSet.has(i)).length;
+  const pickedWrong = [...selectedIdxs].filter(i=>!correctSet.has(i)).length;
+
+  let base = totalCorrect - (usedHint ? 1 : 0);
+  base = Math.max(1, base); // never below 1 potential (unless all wrong later)
+  let roundScore = Math.max(0, pickedCorrect - 0.5 * pickedWrong);
+  roundScore = Math.min(roundScore, base);
+
+  const isPerfect = (pickedCorrect === totalCorrect) && (pickedWrong === 0) && !usedHint;
+  if(isPerfect){ roundScore += 1; streak += 1; toast(`Perfect! +${roundScore} 🏆`); }
+  else { streak = 0; toast(`You scored +${roundScore.toFixed(1)}`); }
+
+  score = Math.max(0, Math.round((score + roundScore) * 10)/10);
+  saveProgress();
+  updateHeader();
+
+  // Explanations
+  buildExplanations(s, selectedIdxs);
+  if(alwaysExplain) $('#explainBox').style.display = 'block';
+
+  // Buttons
+  $('#btnSubmit').disabled = true;
+  $('#btnNext').disabled = (idx >= scenarios.length-1) ? true : false;
+}
+
+function revealAnswers(){
+  const s = scenarios[idx];
+  const correctSet = new Set(s.choices.map((c,i)=> c.correct ? i : null).filter(v=>v!==null));
+  $$('#choices .choice').forEach((el,i)=>{
+    el.classList.remove('selected','wrong','correct');
+    if(correctSet.has(i)) el.classList.add('correct');
+  });
+  buildExplanations(s);
+  toast("Answers revealed. No points awarded.");
+  $('#btnSubmit').disabled = true;
+  $('#btnNext').disabled = (idx >= scenarios.length-1) ? true : false;
+}
+
+function resetScenario(){
+  $$('#choices .choice').forEach(el=>{
+    el.classList.remove('selected','wrong','correct');
+    el.setAttribute('aria-pressed','false');
+  });
+  $('#btnSubmit').disabled = false;
+  $('#explainBox').style.display = 'none';
+  $('#explainList').innerHTML = '';
+  usedHint = false;
+  $('#maxPts').textContent = Math.max(1, scenarios[idx].choices.filter(c=>c.correct).length);
+}
+
+function nextScenario(){
+  if(idx < scenarios.length-1){
+    idx += 1;
+    saveProgress();
+    renderScenario();
+  }else{
+    toast(`Finished! Final Score: ${score}`);
+  }
+}
+
+function useHint(){
+  if(usedHint) return;
+  usedHint = true;
+  // Nudge: briefly pulse one correct option
+  const s = scenarios[idx];
+  const correctIdxs = s.choices.map((c,i)=> c.correct ? i : null).filter(v=>v!==null);
+  const pick = correctIdxs[Math.floor(Math.random()*correctIdxs.length)];
+  const el = $$('#choices .choice')[pick];
+  el.animate([{transform:'scale(1.0)'},{transform:'scale(1.03)'},{transform:'scale(1.0)'}], {duration:500});
+  $('#maxPts').textContent = Math.max(1, s.choices.filter(c=>c.correct).length - 1);
+  toast("Hint used. Max points reduced by 1.");
+}
+
+/* =========================
+   Wire-up
+   ========================= */
+document.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' && !$('#btnSubmit').disabled) submitAnswers();
+  if(e.key === 'ArrowRight' && !$('#btnNext').disabled) nextScenario();
+});
+
+$('#btnSubmit').addEventListener('click', submitAnswers);
+$('#btnReveal').addEventListener('click', revealAnswers);
+$('#btnReset').addEventListener('click', resetScenario);
+$('#btnNext').addEventListener('click', nextScenario);
+$('#btnHint').addEventListener('click', useHint);
+$('#btnToggleLearn').addEventListener('click', ()=>{
+  alwaysExplain = !alwaysExplain;
+  $('#btnToggleLearn').textContent = alwaysExplain ? "🧠 Always show explanations (on)" : "🧠 Always show explanations (off)";
+  if(alwaysExplain) { $('#explainBox').style.display = 'block'; }
+});
+$('#btnRestart').addEventListener('click', ()=>{
+  idx=0; score=0; streak=0; saveProgress(); renderScenario(); toast("Progress reset.");
+});
+
+// Timer
+setInterval(()=>{
+  const elapsed = Date.now() - startedAt;
+  $('#timer').textContent = fmtTime(elapsed);
+}, 1000);
+
+// Init
+loadProgress();
+renderScenario();
+</script>
+</body>
+</html>
