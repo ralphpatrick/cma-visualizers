@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pet Shop Workflow</title>
+<style>
+:root {
+  --bg: #ffffff;
+  --text: #111111;
+  --muted: #6e6e73;
+  --line: #e5e5ea;
+  --chip-bg: #f5f5f7;
+  --node-bg: #ffffff;
+  --accent: #0071e3;
+  --shadow: 0 1px 2px rgba(0,0,0,.06), 0 8px 30px rgba(0,0,0,.08);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #000000;
+    --text: #f5f5f7;
+    --muted: #9e9ea5;
+    --line: #2c2c2e;
+    --chip-bg: #1c1c1e;
+    --node-bg: #0b0b0c;
+    --accent: #0a84ff;
+    --shadow: 0 6px 24px rgba(0,0,0,.6);
+  }
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+header {
+  text-align: center;
+  padding: 40px 16px 18px;
+}
+h1 {
+  margin: 0;
+  font-weight: 600;
+  font-size: clamp(26px, 3.2vw, 40px);
+  letter-spacing: -0.02em;
+}
+.subtle {
+  margin: 8px 0 16px;
+  color: var(--muted);
+  font-size: clamp(14px, 1.8vw, 16px);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+.segmented {
+  display: inline-flex;
+  align-items: center;
+  background: var(--chip-bg);
+  border: 1px solid var(--line);
+  border-radius: 9999px;
+  padding: 4px;
+  gap: 4px;
+}
+.segmented .segment {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 8px 14px;
+  font-size: 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: color .2s, background .2s, box-shadow .2s;
+}
+.segmented .segment.active {
+  background: var(--bg);
+  color: var(--text);
+  box-shadow: var(--shadow);
+}
+.segment:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  border: 1px solid var(--line);
+}
+
+main { padding: 8px 16px 24px; }
+svg#workflow {
+  width: 100%;
+  height: min(72vh, 760px);
+  display: block;
+  background: var(--bg);
+}
+
+.link {
+  stroke: var(--line);
+  stroke-width: 1.25;
+  vector-effect: non-scaling-stroke;
+  transition: stroke .2s, opacity .2s, stroke-width .2s;
+  opacity: .85;
+}
+.link.highlight {
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 1;
+}
+.link.hidden { opacity: 0; pointer-events: none; }
+
+.node { cursor: pointer; }
+.node[hidden] { display: none; }
+.node circle.main {
+  fill: var(--node-bg);
+  stroke: var(--line);
+  stroke-width: 1;
+  transition: stroke .2s, r .2s, fill .2s;
+  filter: none;
+}
+.node:hover circle.main,
+.node.active circle.main { stroke: var(--accent); stroke-width: 1.5; }
+.node .group-dot { stroke: var(--bg); stroke-width: 1; }
+.node text {
+  fill: var(--text);
+  font-size: 12.5px;
+  pointer-events: none;
+}
+
+#tooltip {
+  position: fixed;
+  z-index: 10;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  padding: 8px 10px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  max-width: min(300px, 70vw);
+}
+#tooltip[hidden] { display: none; }
+#tooltip .title { font-weight: 600; }
+#tooltip .sub { color: var(--muted); margin-top: 2px; font-size: 12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Pet Shop AI Workflow</h1>
+  <p class="subtle">A minimalist map of your AI tools and how they connect.</p>
+  <div class="controls" aria-label="Filters and legend">
+    <div class="segmented" role="tablist" aria-label="Filter by group">
+      <button class="segment active" data-group="All" role="tab" aria-selected="true">All</button>
+      <button class="segment" data-group="Marketing" role="tab" aria-selected="false">Marketing</button>
+      <button class="segment" data-group="Accounting" role="tab" aria-selected="false">Accounting</button>
+      <button class="segment" data-group="Admin" role="tab" aria-selected="false">Admin</button>
+    </div>
+    <div class="legend" aria-hidden="true">
+      <span><i style="background:#4cafef"></i>Marketing</span>
+      <span><i style="background:#ffb74d"></i>Accounting</span>
+      <span><i style="background:#81c784"></i>Admin</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <svg id="workflow" role="img" aria-label="Workflow map of tools and connections"></svg>
+</main>
+
+<div id="tooltip" role="tooltip" hidden></div>
+
+<script>
+const nodes = [
+  { id: "Perplexity", group: "Marketing" },
+  { id: "ChatGPT", group: "Marketing" },
+  { id: "Gemini", group: "Marketing" },
+  { id: "Canva", group: "Marketing" },
+  { id: "CapCut", group: "Marketing" },
+  { id: "Meta Business Suite", group: "Marketing" },
+  { id: "YouTube Studio", group: "Marketing" },
+  { id: "Zoho Books", group: "Accounting" },
+  { id: "Excel", group: "Accounting" },
+  { id: "Google Workspace", group: "Admin" },
+  { id: "BuildInAI", group: "Admin" }
+];
+
+const links = [
+  { source: "Perplexity", target: "ChatGPT" },
+  { source: "ChatGPT", target: "Canva" },
+  { source: "Gemini", target: "Canva" },
+  { source: "Canva", target: "CapCut" },
+  { source: "CapCut", target: "Meta Business Suite" },
+  { source: "CapCut", target: "YouTube Studio" },
+  { source: "Google Workspace", target: "Zoho Books" },
+  { source: "Zoho Books", target: "Excel" },
+  { source: "BuildInAI", target: "Meta Business Suite" },
+  { source: "BuildInAI", target: "YouTube Studio" }
+];
+
+const groupColors = {
+  "Marketing": "#4cafef",
+  "Accounting": "#ffb74d",
+  "Admin": "#81c784"
+};
+
+const descriptions = {
+  "Perplexity": "AI search and research.",
+  "ChatGPT": "Writing, ideas, and automation.",
+  "Gemini": "Google AI assistant.",
+  "Canva": "Design and graphics.",
+  "CapCut": "Video editing and exports.",
+  "Meta Business Suite": "Social scheduling and analytics.",
+  "YouTube Studio": "Channel management and uploads.",
+  "Zoho Books": "Invoices and accounting.",
+  "Excel": "Spreadsheets and reporting.",
+  "Google Workspace": "Docs, Mail, and Drive.",
+  "BuildInAI": "Automated agent builder."
+};
+
+const svg = document.getElementById("workflow");
+const tooltip = document.getElementById("tooltip");
+const segments = document.querySelectorAll(".segment");
+
+let width = 0, height = 0, radius = 0;
+let nodeById = new Map();
+let nodeEls = new Map();
+let lineEls = [];
+let state = { filter: "All" };
+
+function computeLayout() {
+  const rect = svg.getBoundingClientRect();
+  width = rect.width;
+  height = rect.height;
+  radius = Math.min(width, height) / 2.4;
+  nodes.forEach((n, i) => {
+    const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
+    n.x = width / 2 + radius * Math.cos(angle);
+    n.y = height / 2 + radius * Math.sin(angle);
+  });
+}
+
+function clearSvg() {
+  while (svg.firstChild) svg.removeChild(svg.firstChild);
+}
+
+function draw() {
+  clearSvg();
+  svg.setAttribute("width", width);
+  svg.setAttribute("height", height);
+
+  nodeById = new Map(nodes.map(n => [n.id, n]));
+  nodeEls.clear();
+  lineEls = [];
+
+  links.forEach(l => {
+    const s = nodeById.get(l.source);
+    const t = nodeById.get(l.target);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    line.setAttribute("x1", s.x);
+    line.setAttribute("y1", s.y);
+    line.setAttribute("x2", t.x);
+    line.setAttribute("y2", t.y);
+    line.setAttribute("class", "link");
+    line.dataset.source = l.source;
+    line.dataset.target = l.target;
+    svg.appendChild(line);
+    lineEls.push(line);
+  });
+
+  nodes.forEach(n => {
+    const g = document.createElementNS("http://www.w3.org/2000/svg", "g");
+    g.setAttribute("class", "node");
+    g.setAttribute("data-id", n.id);
+    g.setAttribute("data-group", n.group);
+    g.setAttribute("tabindex", "0");
+    g.setAttribute("role", "button");
+    g.setAttribute("aria-label", `${n.id}, ${n.group}. Press Enter to highlight connections.`);
+
+    const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    circle.setAttribute("class", "main");
+    circle.setAttribute("cx", n.x);
+    circle.setAttribute("cy", n.y);
+    circle.setAttribute("r", 24);
+
+    const groupDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    groupDot.setAttribute("class", "group-dot");
+    groupDot.setAttribute("cx", n.x + 16);
+    groupDot.setAttribute("cy", n.y - 16);
+    groupDot.setAttribute("r", 4);
+    groupDot.setAttribute("fill", groupColors[n.group]);
+
+    const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+    text.setAttribute("x", n.x);
+    text.setAttribute("y", n.y + 38);
+    text.setAttribute("text-anchor", "middle");
+    text.textContent = n.id;
+
+    g.appendChild(circle);
+    g.appendChild(groupDot);
+    g.appendChild(text);
+
+    g.addEventListener("click", () => highlight(n.id));
+    g.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        highlight(n.id);
+      }
+    });
+
+    g.addEventListener("mouseenter", e => showTooltip(e.clientX, e.clientY, n));
+    g.addEventListener("mousemove", e => moveTooltip(e.clientX, e.clientY));
+    g.addEventListener("mouseleave", hideTooltip);
+    g.addEventListener("focus", () => {
+      const rect = circle.getBoundingClientRect();
+      showTooltip(rect.left + rect.width / 2, rect.top + rect.height / 2, n);
+    });
+    g.addEventListener("blur", hideTooltip);
+
+    svg.appendChild(g);
+    nodeEls.set(n.id, g);
+  });
+}
+
+function highlight(nodeId) {
+  lineEls.forEach(l => l.classList.remove("highlight"));
+  nodeEls.forEach(el => el.classList.remove("active"));
+  const nodeEl = nodeEls.get(nodeId);
+  if (nodeEl) nodeEl.classList.add("active");
+  lineEls.forEach(l => {
+    if (l.dataset.source === nodeId || l.dataset.target === nodeId) {
+      l.classList.add("highlight");
+      svg.appendChild(l);
+    }
+  });
+}
+
+function applyFilter(group) {
+  state.filter = group;
+  segments.forEach(b => {
+    const active = b.dataset.group === group;
+    b.classList.toggle("active", active);
+    b.setAttribute("aria-selected", String(active));
+  });
+
+  nodeEls.forEach((el, id) => {
+    const node = nodeById.get(id);
+    const visible = group === "All" ? true : node.group === group;
+    if (visible) el.removeAttribute("hidden");
+    else el.setAttribute("hidden", "");
+  });
+
+  lineEls.forEach(l => {
+    const show = !nodeEls.get(l.dataset.source).hasAttribute("hidden") &&
+                 !nodeEls.get(l.dataset.target).hasAttribute("hidden");
+    l.classList.toggle("hidden", !show);
+  });
+}
+
+function showTooltip(clientX, clientY, node) {
+  const desc = descriptions[node.id] || "";
+  tooltip.innerHTML = `<div class="title">${node.id}</div><div class="sub">${node.group}</div>${desc ? `<div style="margin-top:6px">${desc}</div>` : ""}`;
+  tooltip.hidden = false;
+  moveTooltip(clientX, clientY);
+}
+function moveTooltip(clientX, clientY) {
+  const pad = 12;
+  const tw = tooltip.offsetWidth || 200;
+  const th = tooltip.offsetHeight || 60;
+  let left = clientX + pad;
+  let top = clientY + pad;
+  if (left + tw > window.innerWidth - 8) left = clientX - tw - pad;
+  if (top + th > window.innerHeight - 8) top = clientY - th - pad;
+  tooltip.style.transform = `translate3d(${Math.max(8, left)}px, ${Math.max(8, top)}px, 0)`;
+}
+function hideTooltip() {
+  tooltip.hidden = true;
+}
+
+function onResize() {
+  computeLayout();
+  draw();
+  applyFilter(state.filter);
+}
+
+segments.forEach(btn => {
+  btn.addEventListener("click", () => applyFilter(btn.dataset.group));
+});
+
+computeLayout();
+draw();
+applyFilter(state.filter);
+window.addEventListener("resize", onResize);
+</script>
+</body>
+</html>
