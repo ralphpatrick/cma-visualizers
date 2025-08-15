@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+	<rect width="320" height="320" rx="24" fill="#FFFFFF"/>
+	<rect x="64" y="60" width="192" height="200" rx="16" fill="#FFFFFF" stroke="#1D6E4B"/>
+	<circle cx="140" cy="160" r="24" fill="#E9F3EE" stroke="#1D6E4B"/>
+	<circle cx="188" cy="180" r="18" fill="#FFF8E7" stroke="#1D6E4B"/>
+	<circle cx="190" cy="134" r="10" fill="#E9F3EE" stroke="#1D6E4B"/>
+	<text x="96" y="96" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700" fill="#1D6E4B">Probiotic Powder</text>
+</svg>

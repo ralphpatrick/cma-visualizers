@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="540" viewBox="0 0 720 540" fill="none">
+	<rect width="720" height="540" rx="24" fill="#E9F3EE"/>
+	<circle cx="180" cy="260" r="90" fill="#FFF8E7"/>
+	<circle cx="280" cy="220" r="60" fill="#FFFFFF"/>
+	<circle cx="520" cy="300" r="110" fill="#FFFFFF"/>
+	<rect x="420" y="340" width="160" height="80" rx="16" fill="#FFF8E7"/>
+	<text x="48" y="80" font-family="DM Serif Display, Georgia, serif" font-size="40" fill="#1D6E4B">Happy pets, healthy hearts</text>
+</svg>

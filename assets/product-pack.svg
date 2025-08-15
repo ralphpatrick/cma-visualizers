@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+	<rect width="320" height="320" rx="24" fill="#FFFFFF"/>
+	<rect x="80" y="40" width="160" height="220" rx="16" fill="#E9F3EE" stroke="#1D6E4B" stroke-width="2"/>
+	<rect x="84" y="64" width="152" height="36" rx="8" fill="#FFF8E7"/>
+	<circle cx="160" cy="160" r="36" fill="#FFF8E7" stroke="#1D6E4B"/>
+	<path d="M150 168c0-8 10-14 10-14s10 6 10 14-4 14-10 14-10-6-10-14z" fill="#1D6E4B"/>
+	<text x="110" y="240" font-family="Inter, Arial, sans-serif" font-size="14" font-weight="700" fill="#1D6E4B">Purrfect Picks</text>
+</svg>

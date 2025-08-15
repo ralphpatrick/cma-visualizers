@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+	<rect width="320" height="320" rx="24" fill="#FFFFFF"/>
+	<rect x="64" y="60" width="192" height="200" rx="16" fill="#FFF8E7" stroke="#1D6E4B"/>
+	<path d="M100 190c40-40 80-40 120 0-10 30-40 40-60 40s-50-10-60-40z" fill="#E9F3EE" stroke="#1D6E4B"/>
+	<text x="96" y="96" font-family="Inter, Arial, sans-serif" font-size="16" font-weight="700" fill="#1D6E4B">Salmon Bites</text>
+</svg>
